@@ -101,7 +101,7 @@ def _main_(args):
     # run k_mean to find the anchors
     annotation_dims = []
     for image in train_imgs:
-        print(image['filename'])
+        #print(image['filename'])
         for obj in image['object']:
             relative_w = (float(obj['xmax']) - float(obj['xmin']))/image['width']
             relatice_h = (float(obj["ymax"]) - float(obj['ymin']))/image['height']
