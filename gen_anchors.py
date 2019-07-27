@@ -84,7 +84,7 @@ def run_kmeans(ann_dims, anchor_num):
         prev_assignments = assignments.copy()
         old_distances = distances.copy()
 
-def _main_(argv):
+def _main_(args):
     config_path = args.conf
     num_anchors = args.anchors
 
