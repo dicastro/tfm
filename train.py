@@ -62,13 +62,13 @@ def create_training_instances(
 
     return train_ints, valid_ints, sorted(labels), max_box_per_image
 
-def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save):
+def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save, early_stopping_patience):
     makedirs(tensorboard_logs)
     
     early_stop = EarlyStopping(
         monitor     = 'loss', 
         min_delta   = 0.01, 
-        patience    = 5, 
+        patience    = early_stopping_patience, 
         mode        = 'min', 
         verbose     = 1
     )
@@ -87,7 +87,7 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save):
         patience = 2,
         verbose  = 1,
         mode     = 'min',
-        epsilon  = 0.01,
+        min_delta  = 0.01,
         cooldown = 0,
         min_lr   = 0
     )
@@ -107,6 +107,7 @@ def create_model(
     ignore_thresh, 
     multi_gpu, 
     saved_weights_name, 
+    pretrained_weights,
     lr,
     grid_scales,
     obj_scale,
@@ -146,12 +147,12 @@ def create_model(
             class_scale         = class_scale
         )  
 
-    # load the pretrained weight if exists, otherwise load the backend weight only
+    # load the pretrained weight if exists, otherwise load the pretrained weights only
     if os.path.exists(saved_weights_name): 
         print("\nLoading pretrained weights.\n")
         template_model.load_weights(saved_weights_name)
     else:
-        template_model.load_weights("backend.h5", by_name=True)       
+        template_model.load_weights(pretrained_weights, by_name=True)       
 
     if multi_gpu > 1:
         train_model = multi_gpu_model(template_model, gpus=multi_gpu)
@@ -234,6 +235,7 @@ def _main_(args):
         ignore_thresh       = config['train']['ignore_thresh'],
         multi_gpu           = multi_gpu,
         saved_weights_name  = config['train']['saved_weights_name'],
+        pretrained_weights  = config['train']['pretrained_weights'],
         lr                  = config['train']['learning_rate'],
         grid_scales         = config['train']['grid_scales'],
         obj_scale           = config['train']['obj_scale'],
@@ -245,7 +247,7 @@ def _main_(args):
     ###############################
     #   Kick off the training
     ###############################
-    callbacks = create_callbacks(config['train']['saved_weights_name'], config['train']['tensorboard_dir'], infer_model)
+    callbacks = create_callbacks(config['train']['saved_weights_name'], config['train']['tensorboard_dir'], infer_model, config['train']['early_stopping_patience'])
 
     train_model.fit_generator(
         generator        = train_generator, 
