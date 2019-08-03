@@ -22,9 +22,22 @@ def _main_(args):
 
     ###############################
     #   Set some parameter
-    ###############################       
+    ###############################
+    downsample = 32 # ratio between network input's size and network output's size, 32 for YOLOv3
+
     net_h, net_w = 416, 416 # a multiple of 32, the smaller the faster
-    obj_thresh, nms_thresh = 0.5, 0.45
+
+    # this only works for squared images
+    if config['model']['min_input_size'] == config['model']['max_input_size']:
+        net_w = config['model']['min_input_size']//downsample*downsample
+        net_h = config['model']['min_input_size']//downsample*downsample
+
+    obj_thresh = config['train']['ignore_thresh']
+
+    nms_thresh = 0.45
+
+    if config['valid']['duplicate_thresh']:
+        nms_thresh = config['valid']['duplicate_thresh']
 
     ###############################
     #   Load the model
@@ -109,9 +122,11 @@ def _main_(args):
         image_paths = [inp_file for inp_file in image_paths if (inp_file[-4:] in ['.jpg', '.png', 'JPEG'])]
 
         # the main loop
-        for image_path in image_paths:
+        for image_i, image_path in enumerate(image_paths):
             image = cv2.imread(image_path)
-            print(image_path)
+
+            if image_i > 0 and image_i % 50 == 0:
+                print('predicted {:4} images out of {:4} images in total'.format(image_i, len(image_paths)))
 
             # predict the bounding boxes
             boxes = get_yolo_boxes(infer_model, [image], net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)[0]
@@ -120,7 +135,9 @@ def _main_(args):
             draw_boxes(image, boxes, config['model']['labels'], obj_thresh) 
      
             # write the image with bounding boxes to file
-            cv2.imwrite(output_path + image_path.split('/')[-1], np.uint8(image))         
+            cv2.imwrite(output_path + image_path.split('/')[-1], np.uint8(image))
+        
+        print('predicted all {:4} images'.format(len(image_paths)))
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='Predict with a trained yolo model')
