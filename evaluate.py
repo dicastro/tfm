@@ -53,7 +53,20 @@ def _main_(args):
     infer_model = load_model(config['train']['saved_weights_name'])
 
     # compute mAP for all the classes
-    average_precisions = evaluate(infer_model, valid_generator)
+    downsample = 32 # ratio between network input's size and network output's size, 32 for YOLOv3
+    
+    net_w, net_h = 416, 416
+
+    if config['model']['min_input_size'] == config['model']['max_input_size']:
+        net_w = config['model']['min_input_size']//downsample*downsample
+        net_h = config['model']['min_input_size']//downsample*downsample
+    
+    nms_thresh = 0.45
+
+    if config['valid']['duplicate_thresh']:
+        nms_thresh = config['valid']['duplicate_thresh']
+
+    average_precisions = evaluate(infer_model, valid_generator, net_w=net_w, net_h=net_h, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh)
 
     # print the score
     for label, average_precision in average_precisions.items():
