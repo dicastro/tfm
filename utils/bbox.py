@@ -77,14 +77,23 @@ def draw_boxes(image, boxes, labels, obj_thresh, quiet=True):
             #                   [box.xmin+width+13, box.ymin-height-26],
             #                   [box.xmin+width+13, box.ymin]], dtype='int32') 
 
-            cv2.rectangle(img=image, pt1=(box.xmin,box.ymin), pt2=(box.xmax,box.ymax), color=get_color(label), thickness=1)
+            thickness = 1
+            text_org_x_offset = 0
+            text_org_y_offset = 2
+
+            if image.shape[1] > 1000:
+                thickness = 2
+                text_org_x_offset = 2
+                text_org_y_offset = 6
+
+            cv2.rectangle(img=image, pt1=(box.xmin,box.ymin), pt2=(box.xmax,box.ymax), color=get_color(label), thickness=thickness)
             #cv2.fillPoly(img=image, pts=[region], color=get_color(label))
             cv2.putText(img=image, 
                         text=label_str, 
-                        org=(box.xmin, box.ymin - 2),
+                        org=(box.xmin + text_org_x_offset, box.ymin - text_org_y_offset),
                         fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=1e-3 * image.shape[0] * 0.8,
                         color=(0, 0, 255),
-                        thickness=1)
+                        thickness=thickness)
         
     return image          
