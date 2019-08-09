@@ -5,8 +5,8 @@ import os
 import numpy as np
 import json
 from voc import parse_voc_annotation
-from yolo import create_yolov3_model
-from generator import BatchGenerator
+import yolo_generator
+import yolo_tiny_generator
 from utils.utils import normalize, evaluate
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.optimizers import Adam
@@ -30,8 +30,15 @@ def _main_(args):
 
     labels = labels.keys() if len(config['model']['labels']) == 0 else config['model']['labels']
     labels = sorted(labels)
-   
-    valid_generator = BatchGenerator(
+    
+    if not config['model']['type'] or config['model']['type'] == 'v3':
+        print('Evaluating YOLOv3 model...')
+        batch_generator = getattr(yolo_generator, 'BatchGenerator')
+    elif config['model']['type'] == 'tiny':
+        print('Evaluating YOLO Tiny model...')
+        batch_generator = getattr(yolo_tiny_generator, 'BatchGenerator')
+
+    valid_generator = batch_generator(
         instances           = valid_ints, 
         anchors             = config['model']['anchors'],   
         labels              = labels,        

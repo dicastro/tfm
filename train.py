@@ -7,7 +7,8 @@ import json
 from voc import parse_voc_annotation
 import yolo
 import yolo_tiny
-from generator import BatchGenerator
+import yolo_generator
+import yolo_tiny_generator
 from utils.utils import normalize, evaluate, makedirs
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from keras.optimizers import Adam
@@ -196,10 +197,21 @@ def _main_(args):
 
     downsample = 32 # ratio between network input's size and network output's size, 32 for YOLOv3
 
+    if not config['model']['type'] or config['model']['type'] == 'v3':
+        print('Training YOLOv3 model...')
+        create_model_func = getattr(yolo, 'create_yolov3_model')
+        loss_func = getattr(yolo, 'dummy_loss')
+        batch_generator = getattr(yolo_generator, 'BatchGenerator')
+    elif config['model']['type'] == 'tiny':
+        print('Training YOLO Tiny model...')
+        create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
+        loss_func = getattr(yolo_tiny, 'dummy_loss')
+        batch_generator = getattr(yolo_tiny_generator, 'BatchGenerator')
+
     ###############################
     #   Create the generators 
     ###############################    
-    train_generator = BatchGenerator(
+    train_generator = batch_generator(
         instances           = train_ints, 
         anchors             = config['model']['anchors'],   
         labels              = labels,        
@@ -213,7 +225,7 @@ def _main_(args):
         norm                = normalize
     )
     
-    valid_generator = BatchGenerator(
+    valid_generator = batch_generator(
         instances           = valid_ints, 
         anchors             = config['model']['anchors'],   
         labels              = labels,        
@@ -236,15 +248,6 @@ def _main_(args):
 
     os.environ['CUDA_VISIBLE_DEVICES'] = config['train']['gpus']
     multi_gpu = len(config['train']['gpus'].split(','))
-
-    if not config['model']['type'] or config['model']['type'] == 'v3':
-        print('Training YOLOv3 model...')
-        create_model_func = getattr(yolo, 'create_yolov3_model')
-        loss_func = getattr(yolo, 'dummy_loss')
-    elif config['model']['type'] == 'tiny':
-        print('Training YOLO Tiny model...')
-        create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
-        loss_func = getattr(yolo_tiny, 'dummy_loss')
 
     train_model, infer_model = create_model(
         create_model_func    = create_model_func,
