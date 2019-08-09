@@ -5,8 +5,8 @@ import os
 import numpy as np
 import json
 from voc import parse_voc_annotation
-from yolo import create_yolov3_model, dummy_loss
-from yolo_tiny import create_tinyx5_model
+import yolo
+import yolo_tiny
 from generator import BatchGenerator
 from utils.utils import normalize, evaluate, makedirs
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
@@ -100,31 +100,32 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save, early_
     return [early_stop, checkpoint, reduce_on_plateau, tensorboard]
 
 def create_model(
-    create_model_func_name,
-    nb_class, 
-    anchors, 
-    max_box_per_image, 
-    max_grid, batch_size, 
-    warmup_batches, 
-    ignore_thresh, 
-    multi_gpu, 
-    saved_weights_name, 
+    create_model_func,
+    loss_func,
+    nb_class,
+    anchors,
+    max_box_per_image,
+    max_grid, batch_size,
+    warmup_batches,
+    ignore_thresh,
+    multi_gpu,
+    saved_weights_name,
     pretrained_weights,
     lr,
     grid_scales,
     obj_scale,
     noobj_scale,
     xywh_scale,
-    class_scale  
+    class_scale
 ):
     if multi_gpu > 1:
         with tf.device('/cpu:0'):
-            template_model, infer_model = create_model_func_name(
-                nb_class            = nb_class, 
-                anchors             = anchors, 
-                max_box_per_image   = max_box_per_image, 
-                max_grid            = max_grid, 
-                batch_size          = batch_size//multi_gpu, 
+            template_model, infer_model = create_model_func(
+                nb_class            = nb_class,
+                anchors             = anchors,
+                max_box_per_image   = max_box_per_image,
+                max_grid            = max_grid,
+                batch_size          = batch_size//multi_gpu,
                 warmup_batches      = warmup_batches,
                 ignore_thresh       = ignore_thresh,
                 grid_scales         = grid_scales,
@@ -134,12 +135,12 @@ def create_model(
                 class_scale         = class_scale
             )
     else:
-        template_model, infer_model = create_model_func_name(
-            nb_class            = nb_class, 
-            anchors             = anchors, 
-            max_box_per_image   = max_box_per_image, 
-            max_grid            = max_grid, 
-            batch_size          = batch_size, 
+        template_model, infer_model = create_model_func(
+            nb_class            = nb_class,
+            anchors             = anchors,
+            max_box_per_image   = max_box_per_image,
+            max_grid            = max_grid,
+            batch_size          = batch_size,
             warmup_batches      = warmup_batches,
             ignore_thresh       = ignore_thresh,
             grid_scales         = grid_scales,
@@ -147,7 +148,7 @@ def create_model(
             noobj_scale         = noobj_scale,
             xywh_scale          = xywh_scale,
             class_scale         = class_scale
-        )  
+        )
 
     # load the pretrained weight if exists, otherwise load the pretrained weights only
     if os.path.exists(saved_weights_name): 
@@ -169,7 +170,7 @@ def create_model(
         train_model = template_model      
 
     optimizer = Adam(lr=lr, clipnorm=0.001)
-    train_model.compile(loss=dummy_loss, optimizer=optimizer)             
+    train_model.compile(loss=loss_func, optimizer=optimizer)             
 
     return train_model, infer_model
 
@@ -236,31 +237,32 @@ def _main_(args):
     os.environ['CUDA_VISIBLE_DEVICES'] = config['train']['gpus']
     multi_gpu = len(config['train']['gpus'].split(','))
 
-    create_model_func_name = 'create_yolov3_model'
-
     if config['model'] or config['model'] == 'v3':
-        create_model_func_name = 'create_yolov3_model'
+        create_model_func = getattr(yolo, 'create_yolov3_model')
+        loss_func = getattr(yolo, 'dummy_loss')
     elif config['model'] == 'tiny':
-        create_model_func_name = 'create_tinyx5_model'
+        create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
+        loss_func = getattr(yolo_tiny, 'dummy_loss')
 
     train_model, infer_model = create_model(
-        create_model_func_name = create_model_func_name,
-        nb_class               = len(labels), 
-        anchors                = config['model']['anchors'], 
-        max_box_per_image      = max_box_per_image, 
-        max_grid               = [config['model']['max_input_size'], config['model']['max_input_size']], 
-        batch_size             = config['train']['batch_size'], 
-        warmup_batches         = warmup_batches,
-        ignore_thresh          = config['train']['ignore_thresh'],
-        multi_gpu              = multi_gpu,
-        saved_weights_name     = config['train']['saved_weights_name'],
-        pretrained_weights     = config['train']['pretrained_weights'],
-        lr                     = config['train']['learning_rate'],
-        grid_scales            = config['train']['grid_scales'],
-        obj_scale              = config['train']['obj_scale'],
-        noobj_scale            = config['train']['noobj_scale'],
-        xywh_scale             = config['train']['xywh_scale'],
-        class_scale            = config['train']['class_scale'],
+        create_model_func    = create_model_func,
+        loss_func            = loss_func,
+        nb_class             = len(labels), 
+        anchors              = config['model']['anchors'], 
+        max_box_per_image    = max_box_per_image, 
+        max_grid             = [config['model']['max_input_size'], config['model']['max_input_size']], 
+        batch_size           = config['train']['batch_size'], 
+        warmup_batches       = warmup_batches,
+        ignore_thresh        = config['train']['ignore_thresh'],
+        multi_gpu            = multi_gpu,
+        saved_weights_name   = config['train']['saved_weights_name'],
+        pretrained_weights   = config['train']['pretrained_weights'],
+        lr                   = config['train']['learning_rate'],
+        grid_scales          = config['train']['grid_scales'],
+        obj_scale            = config['train']['obj_scale'],
+        noobj_scale          = config['train']['noobj_scale'],
+        xywh_scale           = config['train']['xywh_scale'],
+        class_scale          = config['train']['class_scale'],
     )
 
     ###############################
