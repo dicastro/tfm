@@ -263,7 +263,7 @@ def create_tinyx5_model(
 
     ## yolo-layer-1 : layer 15 ==> 16
     pred_yolo_1 = _conv(x14, {'layer_idx': 15, 'bnorm':False, 'filter': 3*(4+1+nb_class), 'kernel': 1, 'stride': 1, 'pad': 1, 'activation': 'linear', 'init': init}) 
-    loss_yolo_1 = YoloLayer(anchors[6:],
+    loss_yolo_1 = YoloLayer(anchors[9:],
                             [1*num for num in max_grid],     ### ? not the feature size but the origin size, why?
                             batch_size,
                             warmup_batches,
@@ -284,7 +284,7 @@ def create_tinyx5_model(
 
     ## yolo-layer-2 : layer 22 ==> 23
     pred_yolo_2 = _conv(x21, {'layer_idx': 22, 'bnorm':False, 'filter': 3*(4+1+nb_class), 'kernel': 1, 'stride': 1, 'pad': 1, 'activation': 'linear', 'init': init}) 
-    loss_yolo_2 = YoloLayer(anchors[:6],
+    loss_yolo_2 = YoloLayer(anchors[:9],
                             [2*num for num in max_grid],     ### ? not the feature size but the origin size, why?
                             batch_size,
                             warmup_batches,
