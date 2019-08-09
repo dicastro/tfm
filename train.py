@@ -6,6 +6,7 @@ import numpy as np
 import json
 from voc import parse_voc_annotation
 from yolo import create_yolov3_model, dummy_loss
+from yolo_tiny import create_tinyx5_model
 from generator import BatchGenerator
 from utils.utils import normalize, evaluate, makedirs
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
@@ -99,6 +100,7 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save, early_
     return [early_stop, checkpoint, reduce_on_plateau, tensorboard]
 
 def create_model(
+    create_model_func_name,
     nb_class, 
     anchors, 
     max_box_per_image, 
@@ -117,7 +119,7 @@ def create_model(
 ):
     if multi_gpu > 1:
         with tf.device('/cpu:0'):
-            template_model, infer_model = create_yolov3_model(
+            template_model, infer_model = create_model_func_name(
                 nb_class            = nb_class, 
                 anchors             = anchors, 
                 max_box_per_image   = max_box_per_image, 
@@ -132,7 +134,7 @@ def create_model(
                 class_scale         = class_scale
             )
     else:
-        template_model, infer_model = create_yolov3_model(
+        template_model, infer_model = create_model_func_name(
             nb_class            = nb_class, 
             anchors             = anchors, 
             max_box_per_image   = max_box_per_image, 
@@ -234,23 +236,31 @@ def _main_(args):
     os.environ['CUDA_VISIBLE_DEVICES'] = config['train']['gpus']
     multi_gpu = len(config['train']['gpus'].split(','))
 
+    create_model_func_name = 'create_yolov3_model'
+
+    if config['model'] or config['model'] == 'v3':
+        create_model_func_name = 'create_yolov3_model'
+    elif config['model'] == 'tiny':
+        create_model_func_name = 'create_tinyx5_model'
+
     train_model, infer_model = create_model(
-        nb_class            = len(labels), 
-        anchors             = config['model']['anchors'], 
-        max_box_per_image   = max_box_per_image, 
-        max_grid            = [config['model']['max_input_size'], config['model']['max_input_size']], 
-        batch_size          = config['train']['batch_size'], 
-        warmup_batches      = warmup_batches,
-        ignore_thresh       = config['train']['ignore_thresh'],
-        multi_gpu           = multi_gpu,
-        saved_weights_name  = config['train']['saved_weights_name'],
-        pretrained_weights  = config['train']['pretrained_weights'],
-        lr                  = config['train']['learning_rate'],
-        grid_scales         = config['train']['grid_scales'],
-        obj_scale           = config['train']['obj_scale'],
-        noobj_scale         = config['train']['noobj_scale'],
-        xywh_scale          = config['train']['xywh_scale'],
-        class_scale         = config['train']['class_scale'],
+        create_model_func_name = create_model_func_name,
+        nb_class               = len(labels), 
+        anchors                = config['model']['anchors'], 
+        max_box_per_image      = max_box_per_image, 
+        max_grid               = [config['model']['max_input_size'], config['model']['max_input_size']], 
+        batch_size             = config['train']['batch_size'], 
+        warmup_batches         = warmup_batches,
+        ignore_thresh          = config['train']['ignore_thresh'],
+        multi_gpu              = multi_gpu,
+        saved_weights_name     = config['train']['saved_weights_name'],
+        pretrained_weights     = config['train']['pretrained_weights'],
+        lr                     = config['train']['learning_rate'],
+        grid_scales            = config['train']['grid_scales'],
+        obj_scale              = config['train']['obj_scale'],
+        noobj_scale            = config['train']['noobj_scale'],
+        xywh_scale             = config['train']['xywh_scale'],
+        class_scale            = config['train']['class_scale'],
     )
 
     ###############################
