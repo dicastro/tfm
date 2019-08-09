@@ -237,10 +237,12 @@ def _main_(args):
     os.environ['CUDA_VISIBLE_DEVICES'] = config['train']['gpus']
     multi_gpu = len(config['train']['gpus'].split(','))
 
-    if config['model'] or config['model'] == 'v3':
+    if not config['model'] or config['model'] == 'v3':
+        print('Training YOLOv3 model...')
         create_model_func = getattr(yolo, 'create_yolov3_model')
         loss_func = getattr(yolo, 'dummy_loss')
     elif config['model'] == 'tiny':
+        print('Training YOLO Tiny model...')
         create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
         loss_func = getattr(yolo_tiny, 'dummy_loss')
 
