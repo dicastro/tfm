@@ -152,18 +152,20 @@ def create_model(
         )
 
     # load the pretrained weight if exists, otherwise load the pretrained weights only
-    if os.path.exists(saved_weights_name): 
+    if saved_weights_name and os.path.exists(saved_weights_name): 
         print("\nLoading previously saved weights.\n")
         template_model.load_weights(saved_weights_name)
-    else:
+    elif pretrained_weights and os.path.exists(pretrained_weights):
         print("\nLoading pretrained weights.\n")
 
         by_name = False
 
-        if pretrained_weights.endswith('yolo-weights.h5'):
+        if pretrained_weights.endswith('yolo-weights.h5') or pretrained_weights.endswith('yolo-tiny-weights.h5'):
             by_name = True
 
         template_model.load_weights(pretrained_weights, by_name=by_name)
+    else:
+        print('\nNo weights to load!\n')
 
     if multi_gpu > 1:
         train_model = multi_gpu_model(template_model, gpus=multi_gpu)
