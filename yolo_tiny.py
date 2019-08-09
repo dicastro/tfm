@@ -34,10 +34,10 @@ class YoloLayer(Layer):
     def call(self, x):
         input_image, y_pred, y_true, true_boxes = x
         
-        print('!!!!!!!!!!!!!!! tf.concat([{}, {}], axis=0'.format(tf.shape(y_pred)[:3], tf.constant([3, -1])))
-        
+        print('!!!!!!!!!!!!!!! tf.concat([{}, {}], axis=0)'.format(tf.shape(y_pred)[:2], tf.constant([3, -1])))
+
         # adjust the shape of the y_predict [batch, grid_h, grid_w, 3, 4+1+nb_class]
-        y_pred = tf.reshape(y_pred, tf.concat([tf.shape(y_pred)[:3], tf.constant([3, -1])], axis=0))
+        y_pred = tf.reshape(y_pred, tf.concat([tf.shape(y_pred)[:2], tf.constant([3, -1])], axis=0))
         
         # initialize the masks
         object_mask     = tf.expand_dims(y_true[..., 4], 4)
