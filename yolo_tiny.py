@@ -241,8 +241,8 @@ def create_tinyx5_model(
 ):
     input_image = Input(shape=(None, None, 3)) # net_h, net_w, 3   (min, 512, max)
     true_boxes  = Input(shape=(1, 1, 1, max_box_per_image, 4))
-    true_yolo_1 = Input(shape=(None, None, 3, 4+1+nb_class)) # len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
-    true_yolo_2 = Input(shape=(None, None, 3, 4+1+nb_class)) # len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
+    true_yolo_1 = Input(shape=(None, None, 2, 4+1+nb_class)) # len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
+    true_yolo_2 = Input(shape=(None, None, 2, 4+1+nb_class)) # len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
     
     ## TinyX5 backbone
     x0  = _conv(input_image, {'layer_idx':  0, 'bnorm': True, 'filter':   16, 'kernel': 3, 'stride': 1, 'pad': 1, 'activation': 'leaky', 'init': init})
