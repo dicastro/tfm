@@ -33,10 +33,10 @@ class YoloLayer(Layer):
 
     def call(self, x):
         input_image, y_pred, y_true, true_boxes = x
-        #print ">>>>>>> y_true", y_true
+        
         # adjust the shape of the y_predict [batch, grid_h, grid_w, 3, 4+1+nb_class]
         y_pred = tf.reshape(y_pred, tf.concat([tf.shape(y_pred)[:3], tf.constant([3, -1])], axis=0))
-        #print ">>>>>>> y_pred", y_pred
+        
         # initialize the masks
         object_mask     = tf.expand_dims(y_true[..., 4], 4)
 
@@ -175,10 +175,8 @@ class YoloLayer(Layer):
         loss_conf  = tf.reduce_sum(tf.square(conf_delta),     list(range(1,5)))
         loss_class = tf.reduce_sum(class_delta,               list(range(1,5)))
 
-#        loss = loss_xy + loss_wh + loss_conf + loss_class
+        #loss = loss_xy + loss_wh + loss_conf + loss_class
         loss = (loss_xy + loss_wh + loss_conf + loss_class) / self.batch_size
-        
-        print "=============================================================================================================================================================="
         
         loss = tf.Print(loss, [grid_h, count, avg_obj, avg_noobj, avg_cat, avg_iou], message=' INFO: grid_h, count, avg_obj, avg_noobj, avg_cat, avg_iou\t', summarize=1000)
         loss = tf.Print(loss, [recall50, recall75], message=" RECALL: recall-50, recall-75\t", summarize=1000)
@@ -192,10 +190,7 @@ class YoloLayer(Layer):
 
 def _conv(inp, conv):
     x = inp
-    # print ">> layer", conv['layer_idx'], x
-    # keras.layers.Conv2D(filters, kernel_size, strides=(1, 1), padding='valid', data_format=None, 
-    #       dilation_rate=(1, 1), activation=None, use_bias=True, kernel_initializer='glorot_uniform', bias_initializer='zeros', 
-    #       kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None, kernel_constraint=None, bias_constraint=None)
+    
     if conv['init']:
         x = Conv2D(filters=conv['filter'],
                 kernel_size=conv['kernel'],
@@ -215,7 +210,6 @@ def _conv(inp, conv):
     if conv['bnorm']: x = BatchNormalization(epsilon=0.001, name='bnorm_' + str(conv['layer_idx']))(x)
     if conv['activation']=='leaky': x = LeakyReLU(alpha=0.1, name='leaky_' + str(conv['layer_idx']))(x)
 
-    #print ">> layer", conv['layer_idx'], x
     return x 
 
 
@@ -230,7 +224,7 @@ def _upsample(x, upsample):
     return UpSampling2D(2, name='upsample_'+str(upsample['layer_idx']))(x)
 
 
-def create_TinyX5_model(
+def create_tinyx5_model(
     nb_class, 
     anchors, 
     max_box_per_image, 
@@ -249,7 +243,7 @@ def create_TinyX5_model(
     true_boxes  = Input(shape=(1, 1, 1, max_box_per_image, 4))
     true_yolo_1 = Input(shape=(None, None, 3, 4+1+nb_class)) # len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
     true_yolo_2 = Input(shape=(None, None, 3, 4+1+nb_class)) # len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
-    # true_yolo_3 = Input(shape=(None, None, len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
+    #true_yolo_3 = Input(shape=(None, None, len(anchors)//6, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
 
     ## TinyX5 backbone
     x0  = _conv(input_image, {'layer_idx':  0, 'bnorm': True, 'filter':   16, 'kernel': 3, 'stride': 1, 'pad': 1, 'activation': 'leaky', 'init': init})
@@ -280,8 +274,7 @@ def create_TinyX5_model(
                             noobj_scale,
                             xywh_scale,
                             class_scale)([input_image, pred_yolo_1, true_yolo_1, true_boxes])
-    print ">>>>>>>>>> loss_yolo_1", loss_yolo_1
-
+    
     ## layer 17 ==> 21
     x17 = x13
     x18 = _conv(x17,         {'layer_idx': 18, 'bnorm': True, 'filter':  128, 'kernel': 1, 'stride': 1, 'pad': 1, 'activation': 'leaky', 'init': init})
@@ -302,8 +295,7 @@ def create_TinyX5_model(
                             noobj_scale,
                             xywh_scale,
                             class_scale)([input_image, pred_yolo_2, true_yolo_2, true_boxes])
-    print ">>>>>>>>>> loss_yolo_2", loss_yolo_2
-
+    
     ## keras.Model(input, output): 
     ## -- train_model is to set train routine of specific network, so the output should be the loss for back-prop calculation
     ## -- infer_model only for forward calculation and focus on result, so the output should the prediction
