@@ -22,6 +22,12 @@ def _main(args):
     pretrained_weights_path = args.pretrained_weights
     saved_weights_path = args.saved_weights
     batch_size = args.batch_size
+    train_with_frozen_body = args.train_with_frozen_body
+
+    freeze_body = 0
+
+    if train_with_fronzen_body:
+        freeze_body = args.freeze_body
 
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
@@ -31,9 +37,9 @@ def _main(args):
 
     is_tiny_version = len(anchors)==6 # default setting
     if is_tiny_version:
-        model = create_tiny_model(input_shape, anchors, num_classes, freeze_body=2, weights_path=pretrained_weights_path)
+        model = create_tiny_model(input_shape, anchors, num_classes, freeze_body=freeze_body, weights_path=pretrained_weights_path)
     else:
-        model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path=pretrained_weights_path) # make sure you know what you freeze
+        model = create_model(input_shape, anchors, num_classes, freeze_body=freeze_body, weights_path=pretrained_weights_path) # make sure you know what you freeze
 
     logging = TensorBoard(log_dir=log_dir)
     checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5', monitor='val_loss', save_weights_only=True, save_best_only=True, period=3)
@@ -51,7 +57,7 @@ def _main(args):
 
     # Train with frozen layers first, to get a stable loss.
     # Adjust num epochs to your dataset. This step is enough to obtain a not bad model.
-    if True:
+    if train_with_frozen_body:
         model.compile(optimizer=Adam(lr=1e-3), loss={
             # use custom yolo_loss Lambda layer.
             'yolo_loss': lambda y_true, y_pred: y_pred})
@@ -230,6 +236,18 @@ if __name__ == '__main__':
         '--batch_size', type=int,
         default=4,
         help='batch size'
+    )
+
+    parser.add_argument(
+        '--train_with_fronzen_body', type=bool,
+        help='Train at first with frozen body',
+        action='store_true'
+    )
+
+    parser.add_argument(
+        '--freeze_body', type=int,
+        default=0,
+        help='Which part of body to freeze: 0 none, 1 whole body, 2 whole body except last two layers'
     )
 
     _main(parser.parse_args())
