@@ -3,7 +3,7 @@ import argparse
 from yolo import YOLO, detect_video
 
 def _main(args):
-    if 'input' in args:
+    if args.input:
         detect_video(YOLO(**vars(args)), args.input, args.output)
     else:
         print('Must specify at least video_input_path. See usage with --help.')
