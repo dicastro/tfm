@@ -11,7 +11,6 @@ from keras.layers.normalization import BatchNormalization
 from keras.models import Model
 from keras.regularizers import l2
 
-from yolo3.model_common import yolo_head
 from yolo3.utils import compose
 
 
@@ -118,6 +117,29 @@ def tiny_yolo_body(inputs, num_anchors, num_classes):
             DarknetConv2D(num_anchors*(num_classes+5), (1,1)))([x2,x1])
 
     return Model(inputs, [y1,y2])
+
+
+def yolo_head(feats, anchors, num_classes, input_shape):
+    """Convert final layer features to bounding box parameters."""
+    num_anchors = len(anchors)
+    # Reshape to batch, height, width, num_anchors, box_params.
+    anchors_tensor = K.reshape(K.constant(anchors), [1, 1, 1, num_anchors, 2])
+
+    grid_shape = K.shape(feats)[1:3] # height, width
+    grid_y = K.tile(K.reshape(K.arange(0, stop=grid_shape[0]), [-1, 1, 1, 1]), [1, grid_shape[1], 1, 1])
+    grid_x = K.tile(K.reshape(K.arange(0, stop=grid_shape[1]), [1, -1, 1, 1]), [grid_shape[0], 1, 1, 1])
+    grid = K.concatenate([grid_x, grid_y])
+    grid = K.cast(grid, K.dtype(feats))
+
+    feats = K.reshape(feats, [-1, grid_shape[0], grid_shape[1], num_anchors, num_classes + 5])
+
+    # Adjust preditions to each spatial grid point and anchor size.
+    box_xy = (K.sigmoid(feats[..., :2]) + grid) / K.cast(grid_shape[::-1], K.dtype(feats))
+    box_wh = K.exp(feats[..., 2:4]) * anchors_tensor / K.cast(input_shape[::-1], K.dtype(feats))
+    box_confidence = K.sigmoid(feats[..., 4:5])
+    box_class_probs = K.sigmoid(feats[..., 5:])
+
+    return box_xy, box_wh, box_confidence, box_class_probs
 
 
 def yolo_correct_boxes(box_xy, box_wh, input_shape, image_shape):
@@ -273,47 +295,6 @@ def preprocess_true_boxes(true_boxes, input_shape, anchors, num_classes):
     return y_true
 
 
-def box_iou(b1, b2):
-    '''Return iou tensor
-
-    Parameters
-    ----------
-    b1: tensor, shape=(i1,...,iN, 4), xywh
-    b2: tensor, shape=(j, 4), xywh
-
-    Returns
-    -------
-    iou: tensor, shape=(i1,...,iN, j)
-
-    '''
-
-    # Expand dim to apply broadcasting.
-    b1 = K.expand_dims(b1, -2)
-    b1_xy = b1[..., :2]
-    b1_wh = b1[..., 2:4]
-    b1_wh_half = b1_wh/2.
-    b1_mins = b1_xy - b1_wh_half
-    b1_maxes = b1_xy + b1_wh_half
-
-    # Expand dim to apply broadcasting.
-    b2 = K.expand_dims(b2, 0)
-    b2_xy = b2[..., :2]
-    b2_wh = b2[..., 2:4]
-    b2_wh_half = b2_wh/2.
-    b2_mins = b2_xy - b2_wh_half
-    b2_maxes = b2_xy + b2_wh_half
-
-    intersect_mins = K.maximum(b1_mins, b2_mins)
-    intersect_maxes = K.minimum(b1_maxes, b2_maxes)
-    intersect_wh = K.maximum(intersect_maxes - intersect_mins, 0.)
-    intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
-    b1_area = b1_wh[..., 0] * b1_wh[..., 1]
-    b2_area = b2_wh[..., 0] * b2_wh[..., 1]
-    iou = intersect_area / (b1_area + b2_area - intersect_area)
-
-    return iou
-
-
 def yolo_loss(args, anchors, num_classes, ignore_thresh=.5, print_loss=False):
     '''Return yolo_loss tensor
 
@@ -330,6 +311,67 @@ def yolo_loss(args, anchors, num_classes, ignore_thresh=.5, print_loss=False):
     loss: tensor, shape=(1,)
 
     '''
+
+    def yolo_head_loss(feats, anchors, num_classes, input_shape, calc_loss=False):
+        """Convert final layer features to bounding box parameters."""
+        num_anchors = len(anchors)
+        # Reshape to batch, height, width, num_anchors, box_params.
+        anchors_tensor = K.reshape(K.constant(anchors), [1, 1, 1, num_anchors, 2])
+
+        grid_shape = K.shape(feats)[1:3] # height, width
+        grid_y = K.tile(K.reshape(K.arange(0, stop=grid_shape[0]), [-1, 1, 1, 1]), [1, grid_shape[1], 1, 1])
+        grid_x = K.tile(K.reshape(K.arange(0, stop=grid_shape[1]), [1, -1, 1, 1]), [grid_shape[0], 1, 1, 1])
+        grid = K.concatenate([grid_x, grid_y])
+        grid = K.cast(grid, K.dtype(feats))
+
+        feats = K.reshape(feats, [-1, grid_shape[0], grid_shape[1], num_anchors, num_classes + 5])
+
+        # Adjust preditions to each spatial grid point and anchor size.
+        box_xy = (K.sigmoid(feats[..., :2]) + grid) / K.cast(grid_shape[::-1], K.dtype(feats))
+        box_wh = K.exp(feats[..., 2:4]) * anchors_tensor / K.cast(input_shape[::-1], K.dtype(feats))
+        
+        return grid, feats, box_xy, box_wh
+
+    def box_iou(b1, b2):
+        '''Return iou tensor
+
+        Parameters
+        ----------
+        b1: tensor, shape=(i1,...,iN, 4), xywh
+        b2: tensor, shape=(j, 4), xywh
+
+        Returns
+        -------
+        iou: tensor, shape=(i1,...,iN, j)
+
+        '''
+
+        # Expand dim to apply broadcasting.
+        b1 = K.expand_dims(b1, -2)
+        b1_xy = b1[..., :2]
+        b1_wh = b1[..., 2:4]
+        b1_wh_half = b1_wh/2.
+        b1_mins = b1_xy - b1_wh_half
+        b1_maxes = b1_xy + b1_wh_half
+
+        # Expand dim to apply broadcasting.
+        b2 = K.expand_dims(b2, 0)
+        b2_xy = b2[..., :2]
+        b2_wh = b2[..., 2:4]
+        b2_wh_half = b2_wh/2.
+        b2_mins = b2_xy - b2_wh_half
+        b2_maxes = b2_xy + b2_wh_half
+
+        intersect_mins = K.maximum(b1_mins, b2_mins)
+        intersect_maxes = K.minimum(b1_maxes, b2_maxes)
+        intersect_wh = K.maximum(intersect_maxes - intersect_mins, 0.)
+        intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
+        b1_area = b1_wh[..., 0] * b1_wh[..., 1]
+        b2_area = b2_wh[..., 0] * b2_wh[..., 1]
+        iou = intersect_area / (b1_area + b2_area - intersect_area)
+
+        return iou
+
     num_layers = len(anchors)//3 # default setting
     yolo_outputs = args[:num_layers]
     y_true = args[num_layers:]
@@ -344,7 +386,7 @@ def yolo_loss(args, anchors, num_classes, ignore_thresh=.5, print_loss=False):
         object_mask = y_true[l][..., 4:5]
         true_class_probs = y_true[l][..., 5:]
 
-        grid, raw_pred, pred_xy, pred_wh = yolo_head(yolo_outputs[l], anchors[anchor_mask[l]], num_classes, input_shape, calc_loss=True)
+        grid, raw_pred, pred_xy, pred_wh = yolo_head_loss(yolo_outputs[l], anchors[anchor_mask[l]], num_classes, input_shape)
         pred_box = K.concatenate([pred_xy, pred_wh])
 
         # Darknet raw box to calculate loss.
