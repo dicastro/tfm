@@ -169,7 +169,7 @@ class YOLO(object):
     def close_session(self):
         self.sess.close()
 
-def detect_image(yolo, image_path, output_path=''):
+def detect_image(yolo, must_close_session, image_path, output_path=''):
     if os.path.exists(image_path):
         image = Image.open(image_path)
         r_image = yolo.detect_image(image)
@@ -178,9 +178,10 @@ def detect_image(yolo, image_path, output_path=''):
     else:
         raise IOError('Couldn\'t open image')
 
-    yolo.close_session()
+    if must_close_session:
+        yolo.close_session()
 
-def detect_video(yolo, video_path, output_path=""):
+def detect_video(yolo, must_close_session, video_path, output_path=""):
     import cv2
     vid = cv2.VideoCapture(video_path)
     if not vid.isOpened():
@@ -219,5 +220,7 @@ def detect_video(yolo, video_path, output_path=""):
             out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    yolo.close_session()
+    
+    if must_close_session:
+        yolo.close_session()
 

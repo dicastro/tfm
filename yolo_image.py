@@ -4,7 +4,7 @@ from yolo import YOLO, detect_image
 
 def _main(args):
     if args.input:
-        detect_image(YOLO(**vars(args)), args.input, args.output)
+        detect_image(YOLO(**vars(args)), args.close_session, args.input, args.output)
     else:
         print('Must specify at least image_input_path. See usage with --help.')
 
@@ -44,8 +44,14 @@ if __name__ == '__main__':
         help='Number of GPU to use, default ' + str(YOLO.get_defaults('gpu_num'))
     )
 
+    parser.add_argument(
+        '--close_session', type=bool,
+        help='Indicates if session must be close after prediction. Useful when it is run in colab to avoid session close',
+        action='store_true'
+    )
+
     '''
-    Command line positional arguments -- for video detection mode
+    Command line positional arguments
     '''
     parser.add_argument(
         '--input', type=str,
