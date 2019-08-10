@@ -246,8 +246,8 @@ def get_yolo_boxes(model, images, net_h, net_w, anchors, obj_thresh, nms_thresh)
     for i in range(nb_images):
         yolos = []
 
-        for bo in batch_output.shape[0]:
-            yolos.append(batch_output[bo][i])
+        for bo in batch_output:
+            yolos.append(bo[i])
         
         boxes = []
 
