@@ -55,10 +55,8 @@ class BatchGenerator(Sequence):
         t_batch = np.zeros((r_bound - l_bound, 1, 1, 1,  self.max_box_per_image, 4))   # list of groundtruth boxes
 
         # initialize the inputs and the outputs
-        yolo_1 = np.zeros((r_bound - l_bound, 1*base_grid_h,  1*base_grid_w, len(self.anchors)//3, 4+1+len(self.labels))) # desired network output 1
-        print('yolo1 shape: {}'.format(yolo_1.shape))
-        yolo_2 = np.zeros((r_bound - l_bound, 2*base_grid_h,  2*base_grid_w, len(self.anchors)//3, 4+1+len(self.labels))) # desired network output 2
-        print('yolo2 shape: {}'.format(yolo_2.shape))
+        yolo_1 = np.zeros((r_bound - l_bound, 1*base_grid_h,  1*base_grid_w, len(self.anchors)//2, 4+1+len(self.labels))) # desired network output 1
+        yolo_2 = np.zeros((r_bound - l_bound, 2*base_grid_h,  2*base_grid_w, len(self.anchors)//2, 4+1+len(self.labels))) # desired network output 2
         yolos = [yolo_2, yolo_1]
 
         dummy_yolo_1 = np.zeros((r_bound - l_bound, 1))
