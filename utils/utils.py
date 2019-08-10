@@ -256,7 +256,9 @@ def get_yolo_boxes(model, images, net_h, net_w, anchors, obj_thresh, nms_thresh)
         e = len(yolos)
         s = e - 1
         for j in range(len(yolos)):
-            yolo_anchors = anchors[(s-j)*size:(e-j)*size] # config['model']['anchors']
+            from_i = (s-j)*size*2
+            to_i  = (e-j)*size*2
+            yolo_anchors = anchors[from_i:to_i] # config['model']['anchors']
             boxes += decode_netout(yolos[j], yolo_anchors, obj_thresh, net_h, net_w)
 
         # correct the sizes of the bounding boxes
