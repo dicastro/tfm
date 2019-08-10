@@ -70,7 +70,7 @@ def _main(args):
                 epochs=50,
                 initial_epoch=0,
                 callbacks=[logging, checkpoint])
-        model.save_weights(saved_weights)
+        model.save_weights(saved_weights_path)
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
@@ -88,7 +88,7 @@ def _main(args):
             epochs=100,
             initial_epoch=50,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
-        model.save_weights(saved_weights)
+        model.save_weights(saved_weights_path)
 
     # Further training if needed.
 
