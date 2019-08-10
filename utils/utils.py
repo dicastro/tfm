@@ -244,7 +244,11 @@ def get_yolo_boxes(model, images, net_h, net_w, anchors, obj_thresh, nms_thresh)
     batch_boxes  = [None]*nb_images
 
     for i in range(nb_images):
-        yolos = [batch_output[0][i], batch_output[1][i], batch_output[2][i]]
+        yolos = []
+
+        for bo in batch_output.shape[0]:
+            yolos.append(batch_output[bo][i])
+        
         boxes = []
 
         # decode the output of the network
