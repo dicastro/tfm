@@ -23,11 +23,14 @@ def _main(args):
     saved_weights_path = args.saved_weights
     batch_size = args.batch_size
     train_with_frozen_body = args.train_with_frozen_body
+    train_epochs = args.train_epochs
 
     freeze_body = 0
+    frozen_train_epochs = 50
 
     if train_with_frozen_body:
         freeze_body = args.freeze_body
+        frozen_train_epochs = args.frozen_train_epochs
 
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
@@ -67,7 +70,7 @@ def _main(args):
                 steps_per_epoch=max(1, num_train//batch_size),
                 validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=50,
+                epochs=frozen_train_epochs,
                 initial_epoch=0,
                 callbacks=[logging, checkpoint])
         model.save_weights(saved_weights_path)
@@ -80,13 +83,18 @@ def _main(args):
         model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
         print('Unfreeze all of the layers.')
 
+        train_initial_epoch = 0
+        if train_with_frozen_body:
+            train_epochs += frozen_train_epochs
+            train_initial_epoch = frozen_train_epochs
+
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
         model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
             steps_per_epoch=max(1, num_train//batch_size),
             validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
             validation_steps=max(1, num_val//batch_size),
-            epochs=100,
-            initial_epoch=50,
+            epochs=train_epochs,
+            initial_epoch=train_initial_epoch,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
         model.save_weights(saved_weights_path)
 
@@ -248,6 +256,18 @@ if __name__ == '__main__':
         '--freeze_body', type=int,
         default=0,
         help='Which part of body to freeze: 0 none, 1 whole body, 2 whole body except last two layers'
+    )
+
+    parser.add_argument(
+        '--frozen_train_epochs', type=int,
+        default=50,
+        help='Number of epochs to train when body is frozen'
+    )
+
+    parser.add_argument(
+        '--train_epochs', type=int,
+        default=50,
+        help='Number of epochs to train'
     )
 
     _main(parser.parse_args())
