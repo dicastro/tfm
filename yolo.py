@@ -169,6 +169,17 @@ class YOLO(object):
     def close_session(self):
         self.sess.close()
 
+def detect_image(yolo, image_path, output_path=''):
+    if os.path.exists(image_path):
+        image = Image.open(image_path)
+        r_image = yolo.detect_image(image)
+        
+        r_image.save(output_path)
+    else:
+        raise IOError('Couldn\'t open image')
+
+    yolo.close_session()
+
 def detect_video(yolo, video_path, output_path=""):
     import cv2
     vid = cv2.VideoCapture(video_path)

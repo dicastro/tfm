@@ -1,12 +1,12 @@
 import sys
 import argparse
-from yolo import YOLO, detect_video
+from yolo import YOLO, detect_image
 
 def _main(args):
     if 'input' in args:
-        detect_video(YOLO(**vars(args)), args.input, args.output)
+        detect_image(YOLO(**vars(args)), args.input, args.output)
     else:
-        print('Must specify at least video_input_path. See usage with --help.')
+        print('Must specify at least image_input_path. See usage with --help.')
 
 if __name__ == '__main__':
     # class YOLO defines the default value, so suppress any default here
@@ -40,17 +40,14 @@ if __name__ == '__main__':
     '''
     parser.add_argument(
         '--input', type=str,
-        default='./path2your_video',
-        required=False,
-        nargs='?',
-        help = 'Video input path'
+        required=True,
+        help = 'Image input path'
     )
 
     parser.add_argument(
         '--output', type=str,
-        default='',
-        nargs='?',
-        help = '[Optional] Video output path'
+        required=True,
+        help = 'Image output path'
     )
 
     _main(parser.parse_args())
