@@ -163,7 +163,7 @@ class YOLO(object):
             del draw
 
         end = timer()
-        print(end - start)
+        print('Image detection lasted: {}s'.format(end - start))
         return image
 
     def close_session(self):
