@@ -96,7 +96,8 @@ def _main(args):
             epochs=train_epochs,
             initial_epoch=train_initial_epoch,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
-        model.save_weights(saved_weights_path)
+        #model.save_weights(saved_weights_path)
+        model.save(saved_weights_path)
 
     # Further training if needed.
 
