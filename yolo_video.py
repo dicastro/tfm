@@ -7,8 +7,8 @@ def detect_img(image_path, yolo):
     try:
         image = Image.open(image_path)
     except:
-        print('Open Error! Try again!')
-        continue
+        print('Error while opening image {}'.format(image_path))
+        raise
     else:
         r_image = yolo.detect_image(image)
         r_image.show()
