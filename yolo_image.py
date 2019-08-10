@@ -15,17 +15,20 @@ if __name__ == '__main__':
     Command line options
     '''
     parser.add_argument(
-        '--model', type=str,
+        '--model_path', type=str,
+        aliases=['model'],
         help='path to model weight file, default ' + YOLO.get_defaults('model_path')
     )
 
     parser.add_argument(
-        '--anchors', type=str,
+        '--anchors_path', type=str,
+        aliases=['anchors'],
         help='path to anchor definitions, default ' + YOLO.get_defaults('anchors_path')
     )
 
     parser.add_argument(
-        '--classes', type=str,
+        '--classes_path', type=str,
+        aliases=['classes'],
         help='path to class definitions, default ' + YOLO.get_defaults('classes_path')
     )
 
