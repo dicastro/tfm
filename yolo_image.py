@@ -33,6 +33,12 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
+        '--font_path', type=str,
+        aliases=['font'],
+        help='path to font used to write labels in images, default ' + YOLO.get_defaults('font_path')
+    )
+
+    parser.add_argument(
         '--gpu_num', type=int,
         default=1,
         help='Number of GPU to use, default ' + str(YOLO.get_defaults('gpu_num'))
