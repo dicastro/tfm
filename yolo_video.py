@@ -3,17 +3,16 @@ import argparse
 from yolo import YOLO, detect_video
 from PIL import Image
 
-def detect_img(yolo):
-    while True:
-        img = input('Input image filename:')
-        try:
-            image = Image.open(img)
-        except:
-            print('Open Error! Try again!')
-            continue
-        else:
-            r_image = yolo.detect_image(image)
-            r_image.show()
+def detect_img(image_path, yolo):
+    try:
+        image = Image.open(image_path)
+    except:
+        print('Open Error! Try again!')
+        continue
+    else:
+        r_image = yolo.detect_image(image)
+        r_image.show()
+
     yolo.close_session()
 
 FLAGS = None
@@ -45,19 +44,26 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        '--image', default=False, action="store_true",
+        '--image', type=str,
+        default='./path2your_image',
+        action="store_true",
         help='Image detection mode, will ignore all positional arguments'
     )
     '''
     Command line positional arguments -- for video detection mode
     '''
     parser.add_argument(
-        "--input", nargs='?', type=str,required=False,default='./path2your_video',
+        "--input", type=str,
+        default='./path2your_video',
+        required=False,
+        nargs='?',
         help = "Video input path"
     )
 
     parser.add_argument(
-        "--output", nargs='?', type=str, default="",
+        "--output", type=str,
+        default="",
+        nargs='?',
         help = "[Optional] Video output path"
     )
 
@@ -70,8 +76,9 @@ if __name__ == '__main__':
         print("Image detection mode")
         if "input" in FLAGS:
             print(" Ignoring remaining command line arguments: " + FLAGS.input + "," + FLAGS.output)
-        detect_img(YOLO(**vars(FLAGS)))
+
+        detect_img(FLAGS.image, YOLO(**vars(FLAGS)))
     elif "input" in FLAGS:
         detect_video(YOLO(**vars(FLAGS)), FLAGS.input, FLAGS.output)
     else:
-        print("Must specify at least video_input_path.  See usage with --help.")
+        print("Must specify at least video_input_path. See usage with --help.")
