@@ -108,9 +108,9 @@ def get_random_data(annotation_line, input_shape, random=True, max_boxes=20, jit
         np.random.shuffle(box)
         try:
             box[:, [0,2]] = box[:, [0,2]]*nw/iw + dx
-        except Exception e:
+        except:
             print('Box: {}, nw: {}, iw: {}, dx: {} - line: {}'.format(box, nw, iw, dx, annotation_line))
-            raise e
+            raise
         box[:, [1,3]] = box[:, [1,3]]*nh/ih + dy
         if flip: box[:, [0,2]] = w - box[:, [2,0]]
         box[:, 0:2][box[:, 0:2]<0] = 0
