@@ -239,7 +239,7 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        '--train_with_fronzen_body', type=bool,
+        '--train_with_frozen_body', type=bool,
         help='Train at first with frozen body',
         action='store_true'
     )
