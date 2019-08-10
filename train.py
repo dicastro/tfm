@@ -2,6 +2,7 @@
 Retrain the YOLO model for your own dataset.
 """
 
+import argparse
 import numpy as np
 import keras.backend as K
 from keras.layers import Input, Lambda
@@ -13,11 +14,12 @@ from yolo3.model import preprocess_true_boxes, yolo_body, tiny_yolo_body, yolo_l
 from yolo3.utils import get_random_data
 
 
-def _main():
-    annotation_path = 'train.txt'
-    log_dir = 'logs/000/'
-    classes_path = 'model_data/voc_classes.txt'
-    anchors_path = 'model_data/yolo_anchors.txt'
+def _main(args):
+    annotation_path = args.annotation
+    log_dir = args.log_dir
+    classes_path = args.classes
+    anchors_path = args.anchors
+
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
@@ -187,4 +189,34 @@ def data_generator_wrapper(annotation_lines, batch_size, input_shape, anchors, n
     return data_generator(annotation_lines, batch_size, input_shape, anchors, num_classes)
 
 if __name__ == '__main__':
-    _main()
+    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    
+    '''
+    Command line options
+    '''
+
+    parser.add_argument(
+        '--annotation', type=str,
+        default='train.txt',
+        help='path to annotation file'
+    )
+
+    parser.add_argument(
+        '--anchors', type=str,
+        default='model_data/yolo_anchors.txt',
+        help='path to anchor definitions'
+    )
+
+    parser.add_argument(
+        '--classes', type=str,
+        default='model_data/voc_classes.txt',
+        help='path to class definitions'
+    )
+
+    parser.add_argument(
+        '--log_dir', type=int,
+        default='logs/000/',
+        help='path to log directory'
+    )
+
+    _main(parser.parse_args())
