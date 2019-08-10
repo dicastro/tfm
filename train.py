@@ -26,7 +26,7 @@ def _main(args):
 
     freeze_body = 0
 
-    if train_with_fronzen_body:
+    if train_with_frozen_body:
         freeze_body = args.freeze_body
 
     class_names = get_classes(classes_path)
