@@ -40,13 +40,13 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '--gpu_num', type=int,
+        default=1,
         help='Number of GPU to use, default ' + str(YOLO.get_defaults("gpu_num"))
     )
 
     parser.add_argument(
         '--image', type=str,
         default='./path2your_image',
-        action="store_true",
         help='Image detection mode, will ignore all positional arguments'
     )
     '''
