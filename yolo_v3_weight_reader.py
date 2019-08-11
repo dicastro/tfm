@@ -1,6 +1,3 @@
-import struct
-import numpy as np
-
 class WeightReader:
     def __init__(self, weight_file):
         with open(weight_file, 'rb') as w_f:
@@ -17,14 +14,17 @@ class WeightReader:
             
             binary = w_f.read()
 
-        self.offset = 0
+        self.original_model_nb_classes = 80
         self.all_weights = np.frombuffer(binary, dtype='float32')
         
-    def read_bytes(self, size):
-        self.offset = self.offset + size
-        return self.all_weights[self.offset-size:self.offset]
-
+        print('Read {} weights from file'.format(len(self.all_weights))
+        
+    def read_bytes(self, offset, size):
+        return self.all_weights[(offset-size):offset]
+    
     def load_weights(self, model):
+        offset = 0
+        
         for i in range(106):
             try:
                 conv_layer = model.get_layer('conv_' + str(i))
@@ -35,27 +35,58 @@ class WeightReader:
 
                     size = np.prod(norm_layer.get_weights()[0].shape)
 
-                    beta  = self.read_bytes(size) # bias
-                    gamma = self.read_bytes(size) # scale
-                    mean  = self.read_bytes(size) # mean
-                    var   = self.read_bytes(size) # variance            
+                    offset += size
+                    beta  = self.read_bytes(offset, size) # bias
+                    offset += size
+                    gamma = self.read_bytes(offset, size) # scale
+                    offset += size
+                    mean  = self.read_bytes(offset, size) # mean
+                    offset += size
+                    var   = self.read_bytes(offset, size) # variance            
 
-                    weights = norm_layer.set_weights([gamma, beta, mean, var])  
+                    weights = norm_layer.set_weights([gamma, beta, mean, var])
+
+                    previous_conv_layer_size = size
 
                 if len(conv_layer.get_weights()) > 1:
-                    bias   = self.read_bytes(np.prod(conv_layer.get_weights()[1].shape))
-                    kernel = self.read_bytes(np.prod(conv_layer.get_weights()[0].shape))
-                    
+                    print('  processing yolo layer')
+
+                    imported_model_bias_weights = 3 * (4+1+self.original_model_nb_classes)
+                    final_model_bias_weights = np.prod(conv_layer.get_weights()[1].shape)
+                    print('    - # imported weights: {} - # final weights: {} - final bias shape: {}'.format(imported_model_bias_weights, final_model_bias_weights, conv_layer.get_weights()[1].shape))
+                    bias = self.read_bytes(imported_model_bias_weights + offset, imported_model_bias_weights)
+                    print('    - read bias weights: {}'.format(bias.shape))
+                    offset += imported_model_bias_weights
+
+                    bias = bias.reshape(3, -1)[..., :6].reshape(final_model_bias_weights)
+                    print('    - red bias weights filtered into: {}'.format(bias.shape))
+
+                    imported_model_kernel_weights = previous_conv_layer_size * (3 * (4+1+self.original_model_nb_classes))
+                    final_model_kernel_weights = np.prod(conv_layer.get_weights()[0].shape)
+                    print('    - # imported weights: {} - # final weights: {} - final kernel shape: {}'.format(imported_model_kernel_weights, final_model_kernel_weights, conv_layer.get_weights()[0].shape))
+                    kernel = self.read_bytes(imported_model_kernel_weights + offset, imported_model_kernel_weights)
+                    print('    - read kernel weights: {}'.format(kernel.shape))
+                    offset += imported_model_kernel_weights
+
+                    kernel = kernel.reshape(1, 1, previous_conv_layer_size, 3, -1)[..., :6].reshape(1, 1, previous_conv_layer_size, -1)
+                    print('    - read kernel weights filtered: {}'.format(kernel.shape))
                     kernel = kernel.reshape(list(reversed(conv_layer.get_weights()[0].shape)))
+                    print('    - read kernel weights reshaped: {}'.format(kernel.shape))
                     kernel = kernel.transpose([2,3,1,0])
+                    print('    - read kernel weights transposed: {}'.format(kernel.shape))
                     conv_layer.set_weights([kernel, bias])
                 else:
-                    kernel = self.read_bytes(np.prod(conv_layer.get_weights()[0].shape))
+                    size = np.prod(conv_layer.get_weights()[0].shape)
+                    print('  kernel shape: {} - size: {}'.format(conv_layer.get_weights()[0].shape, size))
+                    offset += size
+                    kernel = self.read_bytes(offset, size)
                     kernel = kernel.reshape(list(reversed(conv_layer.get_weights()[0].shape)))
                     kernel = kernel.transpose([2,3,1,0])
                     conv_layer.set_weights([kernel])
             except ValueError:
-                print("no convolution #" + str(i))     
-    
+                print("no convolution #" + str(i))
+
+        return offset
+
     def reset(self):
         self.offset = 0
