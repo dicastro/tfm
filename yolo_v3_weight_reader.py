@@ -1,3 +1,6 @@
+import struct
+import numpy as np
+
 class WeightReader:
     def __init__(self, weight_file):
         with open(weight_file, 'rb') as w_f:
