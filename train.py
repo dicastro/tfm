@@ -64,7 +64,7 @@ def create_training_instances(
 
     return train_ints, valid_ints, sorted(labels), max_box_per_image
 
-def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save, early_stopping_patience):
+def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save, early_stopping_patience, reduce_lr_on_plateau_patience):
     makedirs(tensorboard_logs)
     
     early_stop = EarlyStopping(
@@ -86,7 +86,7 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save, early_
     reduce_on_plateau = ReduceLROnPlateau(
         monitor  = 'loss',
         factor   = 0.1,
-        patience = 2,
+        patience = reduce_lr_on_plateau_patience,
         verbose  = 1,
         mode     = 'min',
         min_delta  = 0.01,
@@ -275,7 +275,7 @@ def _main_(args):
     ###############################
     #   Kick off the training
     ###############################
-    callbacks = create_callbacks(config['train']['saved_weights_name'], config['train']['tensorboard_dir'], infer_model, config['train']['early_stopping_patience'])
+    callbacks = create_callbacks(config['train']['saved_weights_name'], config['train']['tensorboard_dir'], infer_model, config['train']['early_stopping_patience'], config['train']['reduce_lr_on_plateau_patience'])
 
     train_model.fit_generator(
         generator        = train_generator, 
