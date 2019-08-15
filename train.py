@@ -324,7 +324,10 @@ def _main_(args):
     if config['valid']['duplicate_thresh']:
         nms_thresh = config['valid']['duplicate_thresh']
 
-    average_precisions = evaluate(infer_model, valid_generator, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh)
+    if not model_net_w == None and not model_net_h == None:
+        average_precisions = evaluate(infer_model, valid_generator, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh, net_w=model_net_w, net_h=model_net_h)
+    else:
+        average_precisions = evaluate(infer_model, valid_generator, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh)
 
     # print the score
     for label, average_precision in average_precisions.items():
