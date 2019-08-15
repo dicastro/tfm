@@ -238,8 +238,10 @@ def create_tinyx5_model(
     xywh_scale,
     class_scale,
     init=False,
+    width=None,
+    height=None
 ):
-    input_image = Input(shape=(None, None, 3)) # net_h, net_w, 3   (min, 512, max)
+    input_image = Input(shape=(width, height, 3)) # net_h, net_w, 3   (min, 512, max)
     true_boxes  = Input(shape=(1, 1, 1, max_box_per_image, 4))
     true_yolo_1 = Input(shape=(None, None, 3, 4+1+nb_class)) # len(anchors//2)//2, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class
     true_yolo_2 = Input(shape=(None, None, 3, 4+1+nb_class)) # len(anchors//2)//2, 4+1+nb_class)) # grid_h, grid_w, nb_anchor, 5+nb_class

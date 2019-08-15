@@ -117,7 +117,9 @@ def create_model(
     obj_scale,
     noobj_scale,
     xywh_scale,
-    class_scale
+    class_scale,
+    width,
+    height
 ):
     if multi_gpu > 1:
         with tf.device('/cpu:0'):
@@ -133,7 +135,9 @@ def create_model(
                 obj_scale           = obj_scale,
                 noobj_scale         = noobj_scale,
                 xywh_scale          = xywh_scale,
-                class_scale         = class_scale
+                class_scale         = class_scale,
+                width               = width,
+                height              = height
             )
     else:
         template_model, infer_model = create_model_func(
@@ -148,7 +152,9 @@ def create_model(
             obj_scale           = obj_scale,
             noobj_scale         = noobj_scale,
             xywh_scale          = xywh_scale,
-            class_scale         = class_scale
+            class_scale         = class_scale,
+            width               = width,
+            height              = height
         )
 
     # load the pretrained weight if exists, otherwise load the pretrained weights only
@@ -199,6 +205,9 @@ def _main_(args):
 
     downsample = 32 # ratio between network input's size and network output's size, 32 for YOLOv3
 
+    net_w = None
+    net_h = None
+
     if not config['model']['type'] or config['model']['type'] == 'v3':
         print('Training YOLOv3 model...')
         create_model_func = getattr(yolo, 'create_yolov3_model')
@@ -206,6 +215,11 @@ def _main_(args):
         batch_generator = getattr(yolo_generator, 'BatchGenerator')
     elif config['model']['type'] == 'tiny':
         print('Training YOLO Tiny model...')
+        
+        if config['model']['min_input_size'] == config['model']['max_input_size']
+            net_w = config['model']['min_input_size']
+            net_h = config['model']['min_input_size']
+        
         create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
         loss_func = getattr(yolo_tiny, 'dummy_loss')
         batch_generator = getattr(yolo_tiny_generator, 'BatchGenerator')
@@ -270,6 +284,8 @@ def _main_(args):
         noobj_scale          = config['train']['noobj_scale'],
         xywh_scale           = config['train']['xywh_scale'],
         class_scale          = config['train']['class_scale'],
+        width                = net_w,
+        height               = net_h
     )
 
     ###############################
@@ -295,18 +311,12 @@ def _main_(args):
     #   Run the evaluation
     ###############################   
     # compute mAP for all the classes
-    net_w, net_h = 416, 416
-
-    if config['model']['min_input_size'] == config['model']['max_input_size']:
-        net_w = config['model']['min_input_size']//downsample*downsample
-        net_h = config['model']['min_input_size']//downsample*downsample
-    
     nms_thresh = 0.45
 
     if config['valid']['duplicate_thresh']:
         nms_thresh = config['valid']['duplicate_thresh']
 
-    average_precisions = evaluate(infer_model, valid_generator, net_w=net_w, net_h=net_h, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh)
+    average_precisions = evaluate(infer_model, valid_generator, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh)
 
     # print the score
     for label, average_precision in average_precisions.items():
