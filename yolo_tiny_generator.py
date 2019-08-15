@@ -6,18 +6,20 @@ from utils.bbox import BoundBox, bbox_iou
 from utils.image import apply_random_scale_and_crop, random_distort_image, random_flip, correct_bounding_boxes
 
 class BatchGenerator(Sequence):
-    def __init__(self, 
-        instances, 
-        anchors,   
-        labels,        
+    def __init__(self,
+        instances,
+        anchors,
+        labels,
         downsample=32, # ratio between network input's size and network output's size, 32 for YOLOv3
         max_box_per_image=30,
         batch_size=1,
         min_net_size=320,
-        max_net_size=608,    
-        shuffle=True, 
-        jitter=True, 
-        norm=None
+        max_net_size=608,
+        shuffle=True,
+        jitter=True,
+        norm=None,
+        net_w=416,
+        net_h=416
     ):
         self.instances          = instances
         self.batch_size         = batch_size
@@ -30,8 +32,8 @@ class BatchGenerator(Sequence):
         self.jitter             = jitter
         self.norm               = norm
         self.anchors            = [BoundBox(0, 0, anchors[2*i], anchors[2*i+1]) for i in range(len(anchors)//2)]
-        self.net_h              = 416  
-        self.net_w              = 416
+        self.net_h              = net_w
+        self.net_w              = net_h
 
         if shuffle: np.random.shuffle(self.instances)
             

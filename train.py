@@ -205,8 +205,10 @@ def _main_(args):
 
     downsample = 32 # ratio between network input's size and network output's size, 32 for YOLOv3
 
-    net_w = None
-    net_h = None
+    model_net_w = None
+    model_net_h = None
+    generator_net_w = 416
+    generator_net_h = 416
 
     if not config['model']['type'] or config['model']['type'] == 'v3':
         print('Training YOLOv3 model...')
@@ -217,8 +219,10 @@ def _main_(args):
         print('Training YOLO Tiny model...')
         
         if config['model']['min_input_size'] == config['model']['max_input_size']:
-            net_w = config['model']['min_input_size']
-            net_h = config['model']['min_input_size']
+            model_net_w = config['model']['min_input_size']
+            model_net_h = config['model']['min_input_size']
+            generator_net_w = config['model']['min_input_size']
+            generator_net_h = config['model']['min_input_size']
         
         create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
         loss_func = getattr(yolo_tiny, 'dummy_loss')
@@ -238,7 +242,9 @@ def _main_(args):
         max_net_size        = config['model']['max_input_size'],   
         shuffle             = True, 
         jitter              = 0.3, 
-        norm                = normalize
+        norm                = normalize,
+        width               = generator_net_w
+        height              = generator_net_h
     )
     
     valid_generator = batch_generator(
@@ -252,7 +258,9 @@ def _main_(args):
         max_net_size        = config['model']['max_input_size'],   
         shuffle             = True, 
         jitter              = 0.0, 
-        norm                = normalize
+        norm                = normalize,
+        width               = generator_net_w
+        height              = generator_net_h
     )
 
     ###############################
@@ -284,8 +292,8 @@ def _main_(args):
         noobj_scale          = config['train']['noobj_scale'],
         xywh_scale           = config['train']['xywh_scale'],
         class_scale          = config['train']['class_scale'],
-        width                = net_w,
-        height               = net_h
+        width                = model_net_w,
+        height               = model_net_h
     )
 
     ###############################
