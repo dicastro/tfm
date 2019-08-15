@@ -243,7 +243,7 @@ def _main_(args):
         shuffle             = True, 
         jitter              = 0.3, 
         norm                = normalize,
-        width               = generator_net_w
+        width               = generator_net_w,
         height              = generator_net_h
     )
     
@@ -259,7 +259,7 @@ def _main_(args):
         shuffle             = True, 
         jitter              = 0.0, 
         norm                = normalize,
-        width               = generator_net_w
+        width               = generator_net_w,
         height              = generator_net_h
     )
 
