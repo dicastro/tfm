@@ -216,7 +216,7 @@ def _main_(args):
     elif config['model']['type'] == 'tiny':
         print('Training YOLO Tiny model...')
         
-        if config['model']['min_input_size'] == config['model']['max_input_size']
+        if config['model']['min_input_size'] == config['model']['max_input_size']:
             net_w = config['model']['min_input_size']
             net_h = config['model']['min_input_size']
         
