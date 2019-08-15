@@ -243,8 +243,8 @@ def _main_(args):
         shuffle             = True, 
         jitter              = 0.3, 
         norm                = normalize,
-        width               = generator_net_w,
-        height              = generator_net_h
+        net_width           = generator_net_w,
+        net_height          = generator_net_h
     )
     
     valid_generator = batch_generator(
@@ -259,8 +259,8 @@ def _main_(args):
         shuffle             = True, 
         jitter              = 0.0, 
         norm                = normalize,
-        width               = generator_net_w,
-        height              = generator_net_h
+        net_width           = generator_net_w,
+        net_height          = generator_net_h
     )
 
     ###############################
