@@ -4,7 +4,7 @@ import argparse
 import os
 import numpy as np
 import json
-from voc import parse_voc_annotation
+from annotations import parse_voc_annotation, parse_txt_annotation
 import yolo
 import yolo_tiny
 import yolo_generator
@@ -19,22 +19,31 @@ import keras
 from keras.models import load_model
 
 def create_training_instances(
-    train_annot_folder,
+    data_load_method,
+    train_annot,
     train_image_folder,
     train_cache,
-    valid_annot_folder,
+    valid_annot,
     valid_image_folder,
     valid_cache,
     labels,
 ):
     # parse annotations of the training set
-    train_ints, train_labels = parse_voc_annotation(train_annot_folder, train_image_folder, train_cache, labels)
+    if data_load_method == 'voc':
+        train_ints, train_labels = parse_voc_annotation(train_annot, train_image_folder, train_cache, labels)
+    elif data_load_method == 'txt':
+        train_ints, train_labels = parse_txt_annotation(train_annot, train_image_folder, train_cache, labels)
+    else:
+        raise Exception('Unsupported data_load_method: \'{}\''.format(data_load_method))
 
     # parse annotations of the validation set, if any, otherwise split the training set
-    if os.path.exists(valid_annot_folder):
-        valid_ints, valid_labels = parse_voc_annotation(valid_annot_folder, valid_image_folder, valid_cache, labels)
+    if os.path.exists(valid_annot):
+        if data_load_method == 'voc':
+            valid_ints, valid_labels = parse_voc_annotation(valid_annot, valid_image_folder, valid_cache, labels)
+        elif data_load_method == 'txt':
+            valid_ints, valid_labels = parse_txt_annotation(valid_annot, valid_image_folder, valid_cache, labels)
     else:
-        print("valid_annot_folder not exists. Spliting the trainining set.")
+        print("valid_annot not exists. Spliting the trainining set.")
 
         train_valid_split = int(0.8*len(train_ints))
         np.random.seed(0)
@@ -193,10 +202,11 @@ def _main_(args):
     #   Parse the annotations 
     ###############################
     train_ints, valid_ints, labels, max_box_per_image = create_training_instances(
-        config['train']['train_annot_folder'],
+        config['model']['data_load_method'],
+        config['train']['train_annot'],
         config['train']['train_image_folder'],
         config['train']['cache_name'],
-        config['valid']['valid_annot_folder'],
+        config['valid']['valid_annot'],
         config['valid']['valid_image_folder'],
         config['valid']['cache_name'],
         config['model']['labels']

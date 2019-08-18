@@ -4,7 +4,7 @@ import argparse
 import os
 import numpy as np
 import json
-from voc import parse_voc_annotation
+from annotations import parse_voc_annotation, parse_txt_annotation
 import yolo_generator
 import yolo_tiny_generator
 from utils.utils import normalize, evaluate
@@ -20,13 +20,24 @@ def _main_(args):
 
     ###############################
     #   Create the validation generator
-    ###############################  
-    valid_ints, labels = parse_voc_annotation(
-        config['valid']['valid_annot_folder'], 
-        config['valid']['valid_image_folder'], 
-        config['valid']['cache_name'],
-        config['model']['labels']
-    )
+    ###############################
+
+    if config['model']['data_load_method'] == 'voc':
+        valid_ints, labels = parse_voc_annotation(
+            config['valid']['valid_annot'], 
+            config['valid']['valid_image_folder'], 
+            config['valid']['cache_name'],
+            config['model']['labels']
+        )
+    elif config['model']['data_load_method'] == 'txt':
+        valid_ints, labels = parse_txt_annotation(
+            config['valid']['valid_annot'], 
+            config['valid']['valid_image_folder'], 
+            config['valid']['cache_name'],
+            config['model']['labels']
+        )
+    else:
+        raise Exception('Unsupported data_load_method: \'{}\''.format(config['model']['data_load_method']))
 
     labels = labels.keys() if len(config['model']['labels']) == 0 else config['model']['labels']
     labels = sorted(labels)

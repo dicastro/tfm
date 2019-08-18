@@ -2,7 +2,7 @@ import random
 import argparse
 import numpy as np
 
-from voc import parse_voc_annotation
+from annotations import parse_voc_annotation, parse_txt_annotation
 import json
 
 def IOU(ann, centroids):
@@ -91,12 +91,22 @@ def _main_(args):
     with open(config_path) as config_buffer:
         config = json.loads(config_buffer.read())
 
-    train_imgs, train_labels = parse_voc_annotation(
-        config['train']['train_annot_folder'],
-        config['train']['train_image_folder'],
-        config['train']['cache_name'],
-        config['model']['labels']
-    )
+    if config['model']['data_load_method'] == 'voc':
+        train_imgs, train_labels = parse_voc_annotation(
+            config['train']['train_annot'],
+            config['train']['train_image_folder'],
+            config['train']['cache_name'],
+            config['model']['labels']
+        )
+    elif config['model']['data_load_method'] == 'txt':
+        train_imgs, train_labels = parse_txt_annotation(
+            config['train']['train_annot'],
+            config['train']['train_image_folder'],
+            config['train']['cache_name'],
+            config['model']['labels']
+        )
+    else:
+        raise Exception('Unsupported data_load_method: \'{}\''.format(config['model']['data_load_method']))
 
     # run k_mean to find the anchors
     annotation_dims = []

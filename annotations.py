@@ -2,6 +2,7 @@ import numpy as np
 import os
 import xml.etree.ElementTree as ET
 import pickle
+import cv2
 
 def parse_voc_annotation(ann_dir, img_dir, cache_name, labels=[]):
     if os.path.exists(cache_name):
@@ -64,4 +65,67 @@ def parse_voc_annotation(ann_dir, img_dir, cache_name, labels=[]):
         with open(cache_name, 'wb') as handle:
             pickle.dump(cache, handle, protocol=pickle.HIGHEST_PROTOCOL)    
                         
+    return all_insts, seen_labels
+
+def parse_txt_annotation(ann_txt, img_dir, cache_name, labels=[]):
+    if os.path.exists(cache_name):
+        with open(cache_name, 'rb') as handle:
+            cache = pickle.load(handle)
+        all_insts, seen_labels = cache['all_insts'], cache['seen_labels']
+    else:
+        all_insts = []
+        seen_labels = {}
+
+        with open(ann_loc) as annotations_file:
+            annotation_lines = annotations_file.readlines()
+
+            all_img_defs = []
+            
+            for i_line, annotation_line in enumerate(annotation_lines):
+                annotation_line = annotation_line.strip()
+                
+                annotation_parts = annotation_line.split(' ')
+                
+                objects = []
+                
+                for bbox in annotation_parts[1:]:
+                    bbox_parts = bbox.split(',')
+                    
+                    label_index = int(bbox_parts[4])
+                    if label_index >= len(labels):
+                        print('WARN: There is an annotation with a label index ({}) not defined in current labels: {}'.format())
+                        break
+                    
+                    label = labels[label_index]
+
+                    if label in seen_labels:
+                        seen_labels[label] += 1
+                    else:
+                        seen_labels[label] = 1
+
+                    object = {
+                        'name': label,
+                        'xmin': int(bbox_parts[0]),
+                        'ymin': int(bbox_parts[1]),
+                        'xmax': int(bbox_parts[0]) + int(bbox_parts[2]),
+                        'ymax': int(bbox_parts[1]) + int(bbox_parts[3])
+                    }
+                    
+                    objects.append(object)
+                
+                image = cv2.imread(annotation_parts[0])
+                
+                img_def = {
+                    'filename': annotation_parts[0],
+                    'height': image.shape[0],
+                    'width': image.shape[1],
+                    'object': objects
+                }
+                
+                all_img_defs.append(img_def)
+
+        cache = {'all_insts': all_insts, 'seen_labels': seen_labels}
+        with open(cache_name, 'wb') as handle:
+            pickle.dump(cache, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
     return all_insts, seen_labels
