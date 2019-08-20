@@ -76,7 +76,7 @@ def parse_txt_annotation(ann_txt, img_dir, cache_name, labels=[]):
         all_insts = []
         seen_labels = {}
 
-        with open(ann_loc) as annotations_file:
+        with open(ann_txt) as annotations_file:
             annotation_lines = annotations_file.readlines()
 
             all_img_defs = []
