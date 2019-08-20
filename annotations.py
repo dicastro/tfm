@@ -79,8 +79,6 @@ def parse_txt_annotation(ann_txt, img_dir, cache_name, labels=[]):
         with open(ann_txt) as annotations_file:
             annotation_lines = annotations_file.readlines()
 
-            all_img_defs = []
-            
             for i_line, annotation_line in enumerate(annotation_lines):
                 annotation_line = annotation_line.strip()
                 
@@ -103,7 +101,7 @@ def parse_txt_annotation(ann_txt, img_dir, cache_name, labels=[]):
                     else:
                         seen_labels[label] = 1
 
-                    object = {
+                    obj = {
                         'name': label,
                         'xmin': int(bbox_parts[0]),
                         'ymin': int(bbox_parts[1]),
@@ -111,7 +109,7 @@ def parse_txt_annotation(ann_txt, img_dir, cache_name, labels=[]):
                         'ymax': int(bbox_parts[1]) + int(bbox_parts[3])
                     }
                     
-                    objects.append(object)
+                    objects.append(obj)
                 
                 image = cv2.imread(annotation_parts[0])
                 
@@ -122,7 +120,7 @@ def parse_txt_annotation(ann_txt, img_dir, cache_name, labels=[]):
                     'object': objects
                 }
                 
-                all_img_defs.append(img_def)
+                all_insts.append(img_def)
 
         cache = {'all_insts': all_insts, 'seen_labels': seen_labels}
         with open(cache_name, 'wb') as handle:
