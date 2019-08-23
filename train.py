@@ -220,6 +220,12 @@ def _main_(args):
     generator_net_w = 416
     generator_net_h = 416
 
+    if config['model']['min_input_size'] == config['model']['max_input_size']:
+        model_net_w = config['model']['min_input_size']
+        model_net_h = config['model']['min_input_size']
+        generator_net_w = config['model']['min_input_size']
+        generator_net_h = config['model']['min_input_size']
+
     if not config['model']['type'] or config['model']['type'] == 'v3':
         print('Training YOLOv3 model...')
         create_model_func = getattr(yolo, 'create_yolov3_model')
@@ -227,13 +233,6 @@ def _main_(args):
         batch_generator = getattr(yolo_generator, 'BatchGenerator')
     elif config['model']['type'] == 'tiny':
         print('Training YOLO Tiny model...')
-        
-        if config['model']['min_input_size'] == config['model']['max_input_size']:
-            model_net_w = config['model']['min_input_size']
-            model_net_h = config['model']['min_input_size']
-            generator_net_w = config['model']['min_input_size']
-            generator_net_h = config['model']['min_input_size']
-        
         create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
         loss_func = getattr(yolo_tiny, 'dummy_loss')
         batch_generator = getattr(yolo_tiny_generator, 'BatchGenerator')
