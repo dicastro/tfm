@@ -20,7 +20,7 @@ class WeightReader:
         self.original_model_nb_classes = 80
         self.all_weights = np.frombuffer(binary, dtype='float32')
         
-        print('Read {} weights from file'.format(len(self.all_weights))
+        print('Read {} weights from file'.format(len(self.all_weights)))
         
     def read_bytes(self, offset, size):
         return self.all_weights[(offset-size):offset]
