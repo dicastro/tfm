@@ -4,9 +4,11 @@ import argparse
 import os
 import numpy as np
 import json
-from voc import parse_voc_annotation
-from yolo import create_yolov3_model, dummy_loss
-from generator import BatchGenerator
+from annotations import parse_voc_annotation, parse_txt_annotation
+import yolo
+import yolo_tiny
+import yolo_generator
+import yolo_tiny_generator
 from utils.utils import normalize, evaluate, makedirs
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from keras.optimizers import Adam
@@ -17,22 +19,31 @@ import keras
 from keras.models import load_model
 
 def create_training_instances(
-    train_annot_folder,
+    data_load_method,
+    train_annot,
     train_image_folder,
     train_cache,
-    valid_annot_folder,
+    valid_annot,
     valid_image_folder,
     valid_cache,
     labels,
 ):
     # parse annotations of the training set
-    train_ints, train_labels = parse_voc_annotation(train_annot_folder, train_image_folder, train_cache, labels)
+    if data_load_method == 'voc':
+        train_ints, train_labels = parse_voc_annotation(train_annot, train_image_folder, train_cache, labels)
+    elif data_load_method == 'txt':
+        train_ints, train_labels = parse_txt_annotation(train_annot, train_image_folder, train_cache, labels)
+    else:
+        raise Exception('Unsupported data_load_method: \'{}\''.format(data_load_method))
 
     # parse annotations of the validation set, if any, otherwise split the training set
-    if os.path.exists(valid_annot_folder):
-        valid_ints, valid_labels = parse_voc_annotation(valid_annot_folder, valid_image_folder, valid_cache, labels)
+    if os.path.exists(valid_annot):
+        if data_load_method == 'voc':
+            valid_ints, valid_labels = parse_voc_annotation(valid_annot, valid_image_folder, valid_cache, labels)
+        elif data_load_method == 'txt':
+            valid_ints, valid_labels = parse_txt_annotation(valid_annot, valid_image_folder, valid_cache, labels)
     else:
-        print("valid_annot_folder not exists. Spliting the trainining set.")
+        print("valid_annot not exists. Spliting the trainining set.")
 
         train_valid_split = int(0.8*len(train_ints))
         np.random.seed(0)
@@ -62,13 +73,13 @@ def create_training_instances(
 
     return train_ints, valid_ints, sorted(labels), max_box_per_image
 
-def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save):
+def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save, early_stopping_patience, reduce_lr_on_plateau_patience):
     makedirs(tensorboard_logs)
     
     early_stop = EarlyStopping(
         monitor     = 'loss', 
         min_delta   = 0.01, 
-        patience    = 5, 
+        patience    = early_stopping_patience, 
         mode        = 'min', 
         verbose     = 1
     )
@@ -84,10 +95,10 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save):
     reduce_on_plateau = ReduceLROnPlateau(
         monitor  = 'loss',
         factor   = 0.1,
-        patience = 2,
+        patience = reduce_lr_on_plateau_patience,
         verbose  = 1,
         mode     = 'min',
-        epsilon  = 0.01,
+        min_delta  = 0.01,
         cooldown = 0,
         min_lr   = 0
     )
@@ -99,59 +110,77 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save):
     return [early_stop, checkpoint, reduce_on_plateau, tensorboard]
 
 def create_model(
-    nb_class, 
-    anchors, 
-    max_box_per_image, 
-    max_grid, batch_size, 
-    warmup_batches, 
-    ignore_thresh, 
-    multi_gpu, 
-    saved_weights_name, 
+    create_model_func,
+    loss_func,
+    nb_class,
+    anchors,
+    max_box_per_image,
+    max_grid, batch_size,
+    warmup_batches,
+    ignore_thresh,
+    multi_gpu,
+    saved_weights_name,
+    pretrained_weights,
     lr,
     grid_scales,
     obj_scale,
     noobj_scale,
     xywh_scale,
-    class_scale  
+    class_scale,
+    width,
+    height
 ):
     if multi_gpu > 1:
         with tf.device('/cpu:0'):
-            template_model, infer_model = create_yolov3_model(
-                nb_class            = nb_class, 
-                anchors             = anchors, 
-                max_box_per_image   = max_box_per_image, 
-                max_grid            = max_grid, 
-                batch_size          = batch_size//multi_gpu, 
+            template_model, infer_model = create_model_func(
+                nb_class            = nb_class,
+                anchors             = anchors,
+                max_box_per_image   = max_box_per_image,
+                max_grid            = max_grid,
+                batch_size          = batch_size//multi_gpu,
                 warmup_batches      = warmup_batches,
                 ignore_thresh       = ignore_thresh,
                 grid_scales         = grid_scales,
                 obj_scale           = obj_scale,
                 noobj_scale         = noobj_scale,
                 xywh_scale          = xywh_scale,
-                class_scale         = class_scale
+                class_scale         = class_scale,
+                width               = width,
+                height              = height
             )
     else:
-        template_model, infer_model = create_yolov3_model(
-            nb_class            = nb_class, 
-            anchors             = anchors, 
-            max_box_per_image   = max_box_per_image, 
-            max_grid            = max_grid, 
-            batch_size          = batch_size, 
+        template_model, infer_model = create_model_func(
+            nb_class            = nb_class,
+            anchors             = anchors,
+            max_box_per_image   = max_box_per_image,
+            max_grid            = max_grid,
+            batch_size          = batch_size,
             warmup_batches      = warmup_batches,
             ignore_thresh       = ignore_thresh,
             grid_scales         = grid_scales,
             obj_scale           = obj_scale,
             noobj_scale         = noobj_scale,
             xywh_scale          = xywh_scale,
-            class_scale         = class_scale
-        )  
+            class_scale         = class_scale,
+            width               = width,
+            height              = height
+        )
 
-    # load the pretrained weight if exists, otherwise load the backend weight only
-    if os.path.exists(saved_weights_name): 
-        print("\nLoading pretrained weights.\n")
+    # load the pretrained weight if exists, otherwise load the pretrained weights only
+    if saved_weights_name and os.path.exists(saved_weights_name): 
+        print("\nLoading previously saved weights.\n")
         template_model.load_weights(saved_weights_name)
+    elif pretrained_weights and os.path.exists(pretrained_weights):
+        print("\nLoading pretrained weights.\n")
+
+        by_name = False
+
+        if pretrained_weights.endswith('yolo-weights.h5') or pretrained_weights.endswith('yolo-tiny-weights.h5'):
+            by_name = True
+
+        template_model.load_weights(pretrained_weights, by_name=by_name)
     else:
-        template_model.load_weights("backend.h5", by_name=True)       
+        print('\nNo weights to load!\n')
 
     if multi_gpu > 1:
         train_model = multi_gpu_model(template_model, gpus=multi_gpu)
@@ -159,7 +188,7 @@ def create_model(
         train_model = template_model      
 
     optimizer = Adam(lr=lr, clipnorm=0.001)
-    train_model.compile(loss=dummy_loss, optimizer=optimizer)             
+    train_model.compile(loss=loss_func, optimizer=optimizer)             
 
     return train_model, infer_model
 
@@ -173,45 +202,74 @@ def _main_(args):
     #   Parse the annotations 
     ###############################
     train_ints, valid_ints, labels, max_box_per_image = create_training_instances(
-        config['train']['train_annot_folder'],
+        config['model']['data_load_method'],
+        config['train']['train_annot'],
         config['train']['train_image_folder'],
         config['train']['cache_name'],
-        config['valid']['valid_annot_folder'],
+        config['valid']['valid_annot'],
         config['valid']['valid_image_folder'],
         config['valid']['cache_name'],
         config['model']['labels']
     )
     print('\nTraining on: \t' + str(labels) + '\n')
 
+    downsample = 32 # ratio between network input's size and network output's size, 32 for YOLOv3
+
+    model_net_w = None
+    model_net_h = None
+    generator_net_w = 416
+    generator_net_h = 416
+
+    if config['model']['min_input_size'] == config['model']['max_input_size']:
+        model_net_w = config['model']['min_input_size']
+        model_net_h = config['model']['min_input_size']
+        generator_net_w = config['model']['min_input_size']
+        generator_net_h = config['model']['min_input_size']
+
+    if not config['model']['type'] or config['model']['type'] == 'v3':
+        print('Training YOLOv3 model...')
+        create_model_func = getattr(yolo, 'create_yolov3_model')
+        loss_func = getattr(yolo, 'dummy_loss')
+        batch_generator = getattr(yolo_generator, 'BatchGenerator')
+    elif config['model']['type'] == 'tiny':
+        print('Training YOLO Tiny model...')
+        create_model_func = getattr(yolo_tiny, 'create_tinyx5_model')
+        loss_func = getattr(yolo_tiny, 'dummy_loss')
+        batch_generator = getattr(yolo_tiny_generator, 'BatchGenerator')
+
     ###############################
     #   Create the generators 
     ###############################    
-    train_generator = BatchGenerator(
+    train_generator = batch_generator(
         instances           = train_ints, 
         anchors             = config['model']['anchors'],   
         labels              = labels,        
-        downsample          = 32, # ratio between network input's size and network output's size, 32 for YOLOv3
+        downsample          = downsample,
         max_box_per_image   = max_box_per_image,
         batch_size          = config['train']['batch_size'],
         min_net_size        = config['model']['min_input_size'],
         max_net_size        = config['model']['max_input_size'],   
         shuffle             = True, 
         jitter              = 0.3, 
-        norm                = normalize
+        norm                = normalize,
+        net_width           = generator_net_w,
+        net_height          = generator_net_h
     )
     
-    valid_generator = BatchGenerator(
+    valid_generator = batch_generator(
         instances           = valid_ints, 
         anchors             = config['model']['anchors'],   
         labels              = labels,        
-        downsample          = 32, # ratio between network input's size and network output's size, 32 for YOLOv3
+        downsample          = downsample,
         max_box_per_image   = max_box_per_image,
         batch_size          = config['train']['batch_size'],
         min_net_size        = config['model']['min_input_size'],
         max_net_size        = config['model']['max_input_size'],   
         shuffle             = True, 
         jitter              = 0.0, 
-        norm                = normalize
+        norm                = normalize,
+        net_width           = generator_net_w,
+        net_height          = generator_net_h
     )
 
     ###############################
@@ -225,27 +283,32 @@ def _main_(args):
     multi_gpu = len(config['train']['gpus'].split(','))
 
     train_model, infer_model = create_model(
-        nb_class            = len(labels), 
-        anchors             = config['model']['anchors'], 
-        max_box_per_image   = max_box_per_image, 
-        max_grid            = [config['model']['max_input_size'], config['model']['max_input_size']], 
-        batch_size          = config['train']['batch_size'], 
-        warmup_batches      = warmup_batches,
-        ignore_thresh       = config['train']['ignore_thresh'],
-        multi_gpu           = multi_gpu,
-        saved_weights_name  = config['train']['saved_weights_name'],
-        lr                  = config['train']['learning_rate'],
-        grid_scales         = config['train']['grid_scales'],
-        obj_scale           = config['train']['obj_scale'],
-        noobj_scale         = config['train']['noobj_scale'],
-        xywh_scale          = config['train']['xywh_scale'],
-        class_scale         = config['train']['class_scale'],
+        create_model_func    = create_model_func,
+        loss_func            = loss_func,
+        nb_class             = len(labels), 
+        anchors              = config['model']['anchors'], 
+        max_box_per_image    = max_box_per_image, 
+        max_grid             = [config['model']['max_input_size'], config['model']['max_input_size']], 
+        batch_size           = config['train']['batch_size'], 
+        warmup_batches       = warmup_batches,
+        ignore_thresh        = config['train']['ignore_thresh'],
+        multi_gpu            = multi_gpu,
+        saved_weights_name   = config['train']['saved_weights_name'],
+        pretrained_weights   = config['train']['pretrained_weights'],
+        lr                   = config['train']['learning_rate'],
+        grid_scales          = config['train']['grid_scales'],
+        obj_scale            = config['train']['obj_scale'],
+        noobj_scale          = config['train']['noobj_scale'],
+        xywh_scale           = config['train']['xywh_scale'],
+        class_scale          = config['train']['class_scale'],
+        width                = model_net_w,
+        height               = model_net_h
     )
 
     ###############################
     #   Kick off the training
     ###############################
-    callbacks = create_callbacks(config['train']['saved_weights_name'], config['train']['tensorboard_dir'], infer_model)
+    callbacks = create_callbacks(config['train']['saved_weights_name'], config['train']['tensorboard_dir'], infer_model, config['train']['early_stopping_patience'], config['train']['reduce_lr_on_plateau_patience'])
 
     train_model.fit_generator(
         generator        = train_generator, 
@@ -265,7 +328,15 @@ def _main_(args):
     #   Run the evaluation
     ###############################   
     # compute mAP for all the classes
-    average_precisions = evaluate(infer_model, valid_generator)
+    nms_thresh = 0.45
+
+    if config['valid']['duplicate_thresh']:
+        nms_thresh = config['valid']['duplicate_thresh']
+
+    if not model_net_w == None and not model_net_h == None:
+        average_precisions = evaluate(infer_model, valid_generator, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh, net_w=model_net_w, net_h=model_net_h)
+    else:
+        average_precisions = evaluate(infer_model, valid_generator, obj_thresh=config['train']['ignore_thresh'], nms_thresh=nms_thresh)
 
     # print the score
     for label, average_precision in average_precisions.items():

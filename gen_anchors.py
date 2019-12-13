@@ -2,7 +2,7 @@ import random
 import argparse
 import numpy as np
 
-from voc import parse_voc_annotation
+from annotations import parse_voc_annotation, parse_txt_annotation
 import json
 
 def IOU(ann, centroids):
@@ -84,24 +84,34 @@ def run_kmeans(ann_dims, anchor_num):
         prev_assignments = assignments.copy()
         old_distances = distances.copy()
 
-def _main_(argv):
+def _main_(args):
     config_path = args.conf
     num_anchors = args.anchors
 
     with open(config_path) as config_buffer:
         config = json.loads(config_buffer.read())
 
-    train_imgs, train_labels = parse_voc_annotation(
-        config['train']['train_annot_folder'],
-        config['train']['train_image_folder'],
-        config['train']['cache_name'],
-        config['model']['labels']
-    )
+    if config['model']['data_load_method'] == 'voc':
+        train_imgs, train_labels = parse_voc_annotation(
+            config['train']['train_annot'],
+            config['train']['train_image_folder'],
+            config['train']['cache_name'],
+            config['model']['labels']
+        )
+    elif config['model']['data_load_method'] == 'txt':
+        train_imgs, train_labels = parse_txt_annotation(
+            config['train']['train_annot'],
+            config['train']['train_image_folder'],
+            config['train']['cache_name'],
+            config['model']['labels']
+        )
+    else:
+        raise Exception('Unsupported data_load_method: \'{}\''.format(config['model']['data_load_method']))
 
     # run k_mean to find the anchors
     annotation_dims = []
     for image in train_imgs:
-        print(image['filename'])
+        #print(image['filename'])
         for obj in image['object']:
             relative_w = (float(obj['xmax']) - float(obj['xmin']))/image['width']
             relatice_h = (float(obj["ymax"]) - float(obj['ymin']))/image['height']
@@ -126,6 +136,7 @@ if __name__ == '__main__':
         '-a',
         '--anchors',
         default=9,
+        type=int,
         help='number of anchors to use')
 
     args = argparser.parse_args()

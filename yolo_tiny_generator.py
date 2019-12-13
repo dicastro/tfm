@@ -6,18 +6,20 @@ from utils.bbox import BoundBox, bbox_iou
 from utils.image import apply_random_scale_and_crop, random_distort_image, random_flip, correct_bounding_boxes
 
 class BatchGenerator(Sequence):
-    def __init__(self, 
-        instances, 
-        anchors,   
-        labels,        
+    def __init__(self,
+        instances,
+        anchors,
+        labels,
         downsample=32, # ratio between network input's size and network output's size, 32 for YOLOv3
         max_box_per_image=30,
         batch_size=1,
         min_net_size=320,
-        max_net_size=608,    
-        shuffle=True, 
-        jitter=True, 
-        norm=None
+        max_net_size=608,
+        shuffle=True,
+        jitter=True,
+        norm=None,
+        net_width=416,
+        net_height=416
     ):
         self.instances          = instances
         self.batch_size         = batch_size
@@ -30,8 +32,8 @@ class BatchGenerator(Sequence):
         self.jitter             = jitter
         self.norm               = norm
         self.anchors            = [BoundBox(0, 0, anchors[2*i], anchors[2*i+1]) for i in range(len(anchors)//2)]
-        self.net_h              = 416  
-        self.net_w              = 416
+        self.net_h              = net_width
+        self.net_w              = net_height
 
         if shuffle: np.random.shuffle(self.instances)
             
@@ -55,14 +57,12 @@ class BatchGenerator(Sequence):
         t_batch = np.zeros((r_bound - l_bound, 1, 1, 1,  self.max_box_per_image, 4))   # list of groundtruth boxes
 
         # initialize the inputs and the outputs
-        yolo_1 = np.zeros((r_bound - l_bound, 1*base_grid_h,  1*base_grid_w, len(self.anchors)//3, 4+1+len(self.labels))) # desired network output 1
-        yolo_2 = np.zeros((r_bound - l_bound, 2*base_grid_h,  2*base_grid_w, len(self.anchors)//3, 4+1+len(self.labels))) # desired network output 2
-        yolo_3 = np.zeros((r_bound - l_bound, 4*base_grid_h,  4*base_grid_w, len(self.anchors)//3, 4+1+len(self.labels))) # desired network output 3
-        yolos = [yolo_3, yolo_2, yolo_1]
+        yolo_1 = np.zeros((r_bound - l_bound, 1*base_grid_h,  1*base_grid_w, len(self.anchors)//2, 4+1+len(self.labels))) # desired network output 1
+        yolo_2 = np.zeros((r_bound - l_bound, 2*base_grid_h,  2*base_grid_w, len(self.anchors)//2, 4+1+len(self.labels))) # desired network output 2
+        yolos = [yolo_2, yolo_1]
 
         dummy_yolo_1 = np.zeros((r_bound - l_bound, 1))
         dummy_yolo_2 = np.zeros((r_bound - l_bound, 1))
-        dummy_yolo_3 = np.zeros((r_bound - l_bound, 1))
         
         instance_count = 0
         true_box_index = 0
@@ -116,10 +116,10 @@ class BatchGenerator(Sequence):
                 grid_y = int(np.floor(center_y))
 
                 # assign ground truth x, y, w, h, confidence and class probs to y_batch
-                yolo[instance_count, grid_y, grid_x, max_index%3]      = 0
-                yolo[instance_count, grid_y, grid_x, max_index%3, 0:4] = box
-                yolo[instance_count, grid_y, grid_x, max_index%3, 4  ] = 1.
-                yolo[instance_count, grid_y, grid_x, max_index%3, 5+obj_indx] = 1
+                yolo[instance_count, grid_y, grid_x, max_index%2]      = 0
+                yolo[instance_count, grid_y, grid_x, max_index%2, 0:4] = box
+                yolo[instance_count, grid_y, grid_x, max_index%2, 4  ] = 1.
+                yolo[instance_count, grid_y, grid_x, max_index%2, 5+obj_indx] = 1
 
                 # assign the true box to t_batch
                 true_box = [center_x, center_y, obj['xmax'] - obj['xmin'], obj['ymax'] - obj['ymin']]
@@ -145,7 +145,7 @@ class BatchGenerator(Sequence):
             # increase instance counter in the current batch
             instance_count += 1                 
                 
-        return [x_batch, t_batch, yolo_1, yolo_2, yolo_3], [dummy_yolo_1, dummy_yolo_2, dummy_yolo_3]
+        return [x_batch, t_batch, yolo_1, yolo_2], [dummy_yolo_1, dummy_yolo_2]
 
     def _get_net_size(self, idx):
         if idx%10 == 0:
