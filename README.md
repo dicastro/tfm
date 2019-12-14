@@ -15,7 +15,7 @@ A continuación se muestra el listado de repositorios que componen el proyecto:
 
 | Repo | Descripción |
 |------|-------------|
-| [tfm](https://github.com/dicastro/tfm) | Contiene una implementación en python de YOLO V3 y YOLO V3 Lite |
+| Este repo | Contiene una implementación en python de YOLO V3 y YOLO V3 Lite |
 | [tfm-android](https://github.com/dicastro/tfm-android) | Contiene la aplicación móvil android para la explotación del modelo entrenado mediante el uso de [Tensor Flow Lite](https://www.tensorflow.org/lite) |
 | [tfm-doc](https://github.com/dicastro/tfm-doc) | Contiene la [memoria del TFM](https://github.com/dicastro/tfm-doc/raw/master/memoria.pdf) (escrita con LaTeX) |
 
