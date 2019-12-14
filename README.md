@@ -1,6 +1,6 @@
-Este repositorio forma parte de un conjunto de repositorios que entre todos conforman el proyecto realizado como trabajo final del [máster en Data Science & Big Data](https://www.u-tad.com/estudios/master-en-data-science-big-data/) de la [U-TAD](https://www.u-tad.com/).
+# Sistema de detección automática de baches en el asfalto a partir de imágenes
 
-> Se trata de un **Sistema de detección automática de baches en el asfalto a partir de imágenes**.
+Este repositorio forma parte de un conjunto de repositorios que entre todos conforman el proyecto realizado como **trabajo final del [máster en Data Science & Big Data](https://www.u-tad.com/estudios/master-en-data-science-big-data/)** de la [U-TAD](https://www.u-tad.com/).
 
 Para el desarrollo del proyecto se han realizado las siguientes tareas:
 
